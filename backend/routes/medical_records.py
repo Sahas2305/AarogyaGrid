@@ -15,6 +15,7 @@ from datetime import date
 from flask import Blueprint, request, jsonify
 from config import supabase
 from middleware.auth_guard import require_role
+from utils.audit import log_audit_action_async
 
 medical_records_bp = Blueprint('medical_records', __name__)
 
@@ -120,6 +121,14 @@ def create_medical_record():
             'notes':           body.get('notes', '').strip(),
             'record_date':     str(date.today()),
         }).execute()
+
+        new_record_id = result.data[0]['record_id']
+        log_audit_action_async(
+            user_id=user.get('user_id'),
+            action='INSERT',
+            table_affected='medical_record',
+            details=f"Medical record saved (ID: {new_record_id})"
+        )
 
         return jsonify(result.data[0]), 201
 

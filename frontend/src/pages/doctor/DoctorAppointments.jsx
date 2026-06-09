@@ -37,8 +37,9 @@ export const DoctorAppointments = () => {
 
   const handleToggleStatus = async (id, currentStatus) => {
     const nextStatus = currentStatus === 'Scheduled' ? 'Completed' : 'Scheduled';
+    const apiStatus = nextStatus === 'Scheduled' ? 'Pending' : nextStatus;
     try {
-      await updateAppointmentStatus(id, nextStatus);
+      await updateAppointmentStatus(id, apiStatus);
       setAppointments(prev =>
         prev.map(app =>
           app.appointment_id === id ? { ...app, status: nextStatus } : app

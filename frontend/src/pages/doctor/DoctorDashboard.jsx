@@ -128,6 +128,7 @@ export const DoctorDashboard = () => {
     try {
       await createMedicalRecord({
         patient_id: selectedConsult?.patient_id,
+        appointment_id: selectedConsult?.appointment_id,
         diagnosis: diagText,
         prescription: prescText,
         vitals: { bp: vitalsBp, hr: vitalsHr, temp: vitalsTemp, spo2: vitalsSpo2 }

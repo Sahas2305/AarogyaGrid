@@ -10,14 +10,14 @@ import { FilePen, Save, Heart, ShieldAlert } from 'lucide-react';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { getPatients, createMedicalRecord } from '../../api/api';
+import { getAppointments, createMedicalRecord } from '../../api/api';
 
 export const WriteRecord = () => {
   useRoleGuard(['doctor']);
 
-  const [patients, setPatients] = useState([]);
-  const [selectedPatId, setSelectedPatId] = useState('');
-  const [loadingPatients, setLoadingPatients] = useState(true);
+  const [appointments, setAppointments] = useState([]);
+  const [selectedApptId, setSelectedApptId] = useState('');
+  const [loadingAppts, setLoadingAppts] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const [diagnosis, setDiagnosis] = useState('');
@@ -32,18 +32,19 @@ export const WriteRecord = () => {
   const [spo2, setSpo2] = useState('98');
 
   useEffect(() => {
-    const fetchPatients = async () => {
+    const fetchAppts = async () => {
       try {
-        const data = await getPatients();
-        setPatients(data);
-        if (data.length > 0) setSelectedPatId(data[0].patient_id);
+        const data = await getAppointments();
+        const validAppts = data.filter(a => a.status !== 'Cancelled');
+        setAppointments(validAppts);
+        if (validAppts.length > 0) setSelectedApptId(validAppts[0].appointment_id);
       } catch (err) {
-        toast.error('Failed to load patient list.');
+        toast.error('Failed to load appointments.');
       } finally {
-        setLoadingPatients(false);
+        setLoadingAppts(false);
       }
     };
-    fetchPatients();
+    fetchAppts();
   }, []);
 
   const handleSave = async (e) => {
@@ -52,10 +53,17 @@ export const WriteRecord = () => {
       toast.error('Please complete all clinical fields.');
       return;
     }
+    const selectedAppt = appointments.find(a => String(a.appointment_id) === String(selectedApptId));
+    if (!selectedAppt) {
+      toast.error('Invalid appointment selected.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await createMedicalRecord({
-        patient_id: selectedPatId,
+        patient_id: selectedAppt.patient_id,
+        appointment_id: selectedAppt.appointment_id,
         diagnosis,
         treatment,
         prescription,
@@ -92,19 +100,21 @@ export const WriteRecord = () => {
         <form onSubmit={handleSave} className="space-y-5 text-left">
 
           <div className="space-y-1">
-            <label className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Select Patient File</label>
+            <label className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Select Appointment File</label>
             <select
-              value={selectedPatId}
-              onChange={(e) => setSelectedPatId(e.target.value)}
-              disabled={loadingPatients}
+              value={selectedApptId}
+              onChange={(e) => setSelectedApptId(e.target.value)}
+              disabled={loadingAppts}
               className="w-full bg-[#112255]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-brand-cyan/40 cursor-pointer disabled:opacity-50"
             >
-              {loadingPatients ? (
-                <option>Loading patients...</option>
+              {loadingAppts ? (
+                <option>Loading appointments...</option>
+              ) : appointments.length === 0 ? (
+                <option>No active appointments found.</option>
               ) : (
-                patients.map(p => (
-                  <option key={p.patient_id} value={p.patient_id}>
-                    {p.name} ({p.patient_id})
+                appointments.map(a => (
+                  <option key={a.appointment_id} value={a.appointment_id}>
+                    {a.patient_name} - {a.date} ({a.time_slot}) [ID: {a.appointment_id}]
                   </option>
                 ))
               )}

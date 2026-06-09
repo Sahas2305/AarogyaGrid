@@ -95,7 +95,17 @@ export const getDepartments = () => request('/api/departments');
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** GET /api/appointments — scoped by role in backend */
-export const getAppointments = () => request('/api/appointments');
+export const getAppointments = async () => {
+  const data = await request('/api/appointments');
+  return data.map((app) => ({
+    ...app,
+    date: app.appointment_date,
+    time_slot: app.appointment_time,
+    doctor_name: app.doctor?.name || app.doctor_name,
+    patient_name: app.patient?.name || app.patient_name,
+    status: app.status === 'Pending' ? 'Scheduled' : app.status,
+  }));
+};
 
 /**
  * POST /api/appointments

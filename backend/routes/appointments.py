@@ -15,6 +15,7 @@ Table: appointment
 from flask import Blueprint, request, jsonify
 from config import supabase
 from middleware.auth_guard import require_role
+from utils.audit import log_audit_action_async
 
 appointments_bp = Blueprint('appointments', __name__)
 
@@ -145,6 +146,14 @@ def create_appointment():
             'reason':            body.get('reason', ''),
         }).execute()
 
+        new_appt_id = result.data[0]['appointment_id']
+        log_audit_action_async(
+            user_id=user.get('user_id'),
+            action='INSERT',
+            table_affected='appointment',
+            details=f"New appointment booked (ID: {new_appt_id})"
+        )
+
         return jsonify(result.data[0]), 201
 
     except Exception as e:
@@ -206,6 +215,13 @@ def update_appointment(appointment_id):
             .update(updates) \
             .eq('appointment_id', appointment_id) \
             .execute()
+
+        log_audit_action_async(
+            user_id=user.get('user_id'),
+            action='UPDATE',
+            table_affected='appointment',
+            details=f"Appointment {appointment_id} updated"
+        )
 
         return jsonify(result.data[0]), 200
 
