@@ -11,6 +11,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Users, UserCheck, Calendar, CreditCard, Activity, ShieldAlert, Database } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
 import { Card } from '../../components/ui/Card';
@@ -67,7 +68,10 @@ export const AdminDashboard = () => {
         setPatients(Array.isArray(pats) ? pats : []);
         setAppointments(Array.isArray(appts) ? appts : []);
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err);
+        toast.error('Failed to load dashboard data: ' + err.message);
+      })
       .finally(() => setLoading(false));
   }, []);
 

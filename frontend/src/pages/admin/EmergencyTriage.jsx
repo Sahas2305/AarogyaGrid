@@ -14,7 +14,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table';
 import { CustomDonutChart } from '../../components/charts/DonutChart';
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { mockTriagePatients as initialTriagePatients } from '../../data/mockAIDiagnosis';
 
 // Mock charts data
