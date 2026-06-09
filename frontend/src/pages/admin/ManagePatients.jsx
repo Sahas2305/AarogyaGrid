@@ -22,7 +22,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Drawer } from '../../components/ui/Drawer';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
-import { getPatients } from '../../api/api';
+import { getPatients, updatePatient } from '../../api/api';
 
 export const ManagePatients = () => {
   useRoleGuard(['admin']);
@@ -33,6 +33,9 @@ export const ManagePatients = () => {
   const [genderFilter, setGenderFilter] = useState('All');
   const [currentPage,  setCurrentPage]  = useState(1);
   const [drawerOpen,   setDrawerOpen]   = useState(false);
+  const [editMode,     setEditMode]     = useState(false);
+  const [editPatId,    setEditPatId]    = useState(null);
+  const [saving,       setSaving]       = useState(false);
 
   // Form state
   const [patName,      setPatName]      = useState('');
@@ -66,14 +69,76 @@ export const ManagePatients = () => {
     currentPage * itemsPerPage
   );
 
-  const handleCreatePatient = (e) => {
+  const handleAddClick = () => {
+    setEditMode(false);
+    setEditPatId(null);
+    setPatName('');
+    setPatDob('');
+    setPatGender('Male');
+    setPatPhone('');
+    setPatEmail('');
+    setPatAddress('');
+    setPatInsurance('');
+    setDrawerOpen(true);
+  };
+
+  const handleEditClick = (pat) => {
+    setEditMode(true);
+    setEditPatId(pat.patient_id);
+    setPatName(pat.name);
+    setPatDob(pat.dob || '');
+    setPatGender(pat.gender || 'Male');
+    setPatPhone(pat.phone || '');
+    setPatEmail(pat.email || '');
+    setPatAddress(pat.address || '');
+    setPatInsurance(pat.insurance_details || '');
+    setDrawerOpen(true);
+  };
+
+  const handleSavePatient = async (e) => {
     e.preventDefault();
     if (!patName || !patDob || !patPhone || !patEmail || !patAddress) {
       toast.error('Please complete all required fields.');
       return;
     }
-    toast.success('Use the Register tab on the Login page to create patient accounts.');
-    setDrawerOpen(false);
+    
+    if (!editMode) {
+      toast.success('Use the Register tab on the Login page to create patient accounts.');
+      setDrawerOpen(false);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await updatePatient(editPatId, {
+        name: patName,
+        dob: patDob,
+        gender: patGender,
+        phone: patPhone,
+        email: patEmail,
+        address: patAddress,
+        insurance_details: patInsurance,
+      });
+      
+      setPatients(prev => prev.map(p => p.patient_id === editPatId ? { 
+        ...p, 
+        name: patName, 
+        dob: patDob, 
+        gender: patGender, 
+        phone: patPhone, 
+        email: patEmail, 
+        address: patAddress, 
+        insurance_details: patInsurance,
+        ...res.patient 
+      } : p));
+      
+      setDrawerOpen(false);
+      toast.success(`${patName}'s profile updated successfully!`);
+    } catch (err) {
+      toast.error(err.message || 'Failed to update patient.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -88,7 +153,7 @@ export const ManagePatients = () => {
           </p>
         </div>
         <Button
-          onClick={() => setDrawerOpen(true)}
+          onClick={handleAddClick}
           className="mt-4 sm:mt-0 flex items-center space-x-2 text-xs font-bold py-2.5 px-4"
         >
           <Plus className="w-4 h-4" />
@@ -196,7 +261,7 @@ export const ManagePatients = () => {
                         <Button
                           variant="outline"
                           className="py-1 px-2.5 text-[10px]"
-                          onClick={() => toast.success(`Edit mode for ${pat.name}`)}
+                          onClick={() => handleEditClick(pat)}
                         >
                           Edit
                         </Button>
@@ -238,14 +303,14 @@ export const ManagePatients = () => {
         )}
       </div>
 
-      {/* Add Patient Drawer */}
+      {/* Add/Edit Patient Drawer */}
       <Drawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        title="Register Patient File"
+        title={editMode ? "Edit Patient File" : "Register Patient File"}
         size="md"
       >
-        <form onSubmit={handleCreatePatient} className="space-y-4 text-left">
+        <form onSubmit={handleSavePatient} className="space-y-4 text-left">
 
           <div className="space-y-1">
             <label className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Patient Full Name</label>
@@ -349,8 +414,8 @@ export const ManagePatients = () => {
             >
               Cancel
             </Button>
-            <Button type="submit" className="flex-1 text-xs py-2.5">
-              Register Patient
+            <Button type="submit" loading={saving} className="flex-1 text-xs py-2.5">
+              {editMode ? "Save Changes" : "Register Patient"}
             </Button>
           </div>
 

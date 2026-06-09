@@ -21,7 +21,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Drawer } from '../../components/ui/Drawer';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
-import { getDoctors, getDepartments, createDoctor } from '../../api/api';
+import { getDoctors, getDepartments, createDoctor, updateDoctor } from '../../api/api';
 
 export const ManageDoctors = () => {
   useRoleGuard(['admin']);
@@ -33,6 +33,8 @@ export const ManageDoctors = () => {
   const [searchTerm,  setSearchTerm]  = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [drawerOpen,  setDrawerOpen]  = useState(false);
+  const [editMode,    setEditMode]    = useState(false);
+  const [editDocId,   setEditDocId]   = useState(null);
 
   // Form state
   const [docName,           setDocName]           = useState('');
@@ -68,7 +70,30 @@ export const ManageDoctors = () => {
     currentPage * itemsPerPage
   );
 
-  const handleCreateDoctor = async (e) => {
+  const handleAddClick = () => {
+    setEditMode(false);
+    setEditDocId(null);
+    setDocName('');
+    setDocSpecialization('');
+    setDocDepartmentId(departments.length ? String(departments[0].department_id) : '');
+    setDocPhone('');
+    setDocEmail('');
+    setDocTempPassword('Welcome@123');
+    setDrawerOpen(true);
+  };
+
+  const handleEditClick = (doc) => {
+    setEditMode(true);
+    setEditDocId(doc.doctor_id);
+    setDocName(doc.name.replace('Dr. ', ''));
+    setDocSpecialization(doc.specialization);
+    setDocDepartmentId(String(doc.department_id || (doc.department ? doc.department.department_id : '')));
+    setDocPhone(doc.phone);
+    setDocEmail(doc.email);
+    setDrawerOpen(true);
+  };
+
+  const handleSaveDoctor = async (e) => {
     e.preventDefault();
     if (!docName || !docSpecialization || !docPhone || !docEmail || !docDepartmentId) {
       toast.error('Please complete all form fields.');
@@ -76,28 +101,32 @@ export const ManageDoctors = () => {
     }
     setSaving(true);
     try {
-      const res = await createDoctor({
-        name:           `Dr. ${docName}`,
-        specialization: docSpecialization,
-        department_id:  parseInt(docDepartmentId),
-        phone:          docPhone,
-        email:          docEmail,
-        password:       docTempPassword,
-      });
-      // Flask POST /api/doctors returns { doctor: { ...doctor_row... } }
-      // If your Flask route returns the doctor object directly (not nested),
-      // change res.doctor → res here and in the toast below.
-      setDoctors(prev => [res.doctor, ...prev]);
-      setDrawerOpen(false);
-      toast.success(`Dr. ${docName} registered successfully!`);
-      // Reset form
-      setDocName('');
-      setDocSpecialization('');
-      setDocPhone('');
-      setDocEmail('');
-      setDocTempPassword('Welcome@123');
+      if (editMode) {
+        const res = await updateDoctor(editDocId, {
+          name: docName.startsWith('Dr.') ? docName : `Dr. ${docName}`,
+          specialization: docSpecialization,
+          department_id: parseInt(docDepartmentId),
+          phone: docPhone,
+          email: docEmail,
+        });
+        setDoctors(prev => prev.map(d => d.doctor_id === editDocId ? { ...d, ...res.doctor } : d));
+        setDrawerOpen(false);
+        toast.success(`Dr. ${docName} updated successfully!`);
+      } else {
+        const res = await createDoctor({
+          name: `Dr. ${docName}`,
+          specialization: docSpecialization,
+          department_id: parseInt(docDepartmentId),
+          phone: docPhone,
+          email: docEmail,
+          password: docTempPassword,
+        });
+        setDoctors(prev => [res.doctor, ...prev]);
+        setDrawerOpen(false);
+        toast.success(`Dr. ${docName} registered successfully!`);
+      }
     } catch (err) {
-      toast.error(err.message || 'Failed to create doctor.');
+      toast.error(err.message || `Failed to ${editMode ? 'update' : 'create'} doctor.`);
     } finally {
       setSaving(false);
     }
@@ -113,7 +142,7 @@ export const ManageDoctors = () => {
           <p className="text-xs md:text-sm text-text-secondary mt-1">Register, configure, and roster doctor credentials</p>
         </div>
         <Button
-          onClick={() => setDrawerOpen(true)}
+          onClick={handleAddClick}
           className="mt-4 sm:mt-0 flex items-center space-x-2 text-xs font-bold py-2.5 px-4"
         >
           <Plus className="w-4 h-4" />
@@ -185,7 +214,7 @@ export const ManageDoctors = () => {
                     <Button
                       variant="outline"
                       className="py-1 px-2.5 text-[10px]"
-                      onClick={() => toast.success(`Edit panel for ${doc.name}`)}
+                      onClick={() => handleEditClick(doc)}
                     >
                       Edit
                     </Button>
@@ -225,14 +254,14 @@ export const ManageDoctors = () => {
         )}
       </div>
 
-      {/* Add Doctor Drawer */}
+      {/* Add/Edit Doctor Drawer */}
       <Drawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        title="Register Practitioner Account"
+        title={editMode ? "Edit Practitioner Account" : "Register Practitioner Account"}
         size="md"
       >
-        <form onSubmit={handleCreateDoctor} className="space-y-4 text-left">
+        <form onSubmit={handleSaveDoctor} className="space-y-4 text-left">
 
           <div className="space-y-1">
             <label className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">
@@ -321,25 +350,29 @@ export const ManageDoctors = () => {
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">
-              Temporary Password
-            </label>
-            <input
-              type="text"
-              value={docTempPassword}
-              onChange={(e) => setDocTempPassword(e.target.value)}
-              className="w-full bg-[#112255]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-brand-cyan/40"
-              required
-            />
-          </div>
+          {!editMode && (
+            <>
+              <div className="space-y-1">
+                <label className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">
+                  Temporary Password
+                </label>
+                <input
+                  type="text"
+                  value={docTempPassword}
+                  onChange={(e) => setDocTempPassword(e.target.value)}
+                  className="w-full bg-[#112255]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-brand-cyan/40"
+                  required
+                />
+              </div>
 
-          <div className="p-3 bg-brand-warning/10 border border-brand-warning/20 rounded-xl flex items-start space-x-2.5">
-            <ShieldAlert className="w-4 h-4 text-brand-warning mt-0.5 flex-shrink-0" />
-            <span className="text-[10px] text-brand-warning leading-relaxed font-semibold">
-              NOTE: Clinician must complete a profile verification and change temporary credentials during their first system session.
-            </span>
-          </div>
+              <div className="p-3 bg-brand-warning/10 border border-brand-warning/20 rounded-xl flex items-start space-x-2.5">
+                <ShieldAlert className="w-4 h-4 text-brand-warning mt-0.5 flex-shrink-0" />
+                <span className="text-[10px] text-brand-warning leading-relaxed font-semibold">
+                  NOTE: Clinician must complete a profile verification and change temporary credentials during their first system session.
+                </span>
+              </div>
+            </>
+          )}
 
           <div className="flex items-center space-x-3 pt-4 border-t border-white/5">
             <Button
@@ -351,7 +384,7 @@ export const ManageDoctors = () => {
               Cancel
             </Button>
             <Button type="submit" loading={saving} className="flex-1 text-xs py-2.5">
-              Create Account
+              {editMode ? "Save Changes" : "Create Account"}
             </Button>
           </div>
 
