@@ -85,42 +85,7 @@ export const Topbar = ({ onBellClick, unreadCount = 3 }) => {
 
       {/* Right: Notification and Profiles */}
       <div className="flex items-center space-x-4">
-        {/* DEMO SWITCHER */}
-        <div className="relative">
-          <button
-            onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-            className="flex items-center space-x-1 px-3 py-1 bg-white/5 border border-white/8 hover:bg-white/10 rounded-lg text-xs font-semibold text-brand-cyan transition-all"
-          >
-            <span>Demo: {currentUser?.role ? currentUser.role.toUpperCase() : 'Guest'}</span>
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
-          
-          {roleDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-40 bg-[#0d2044] border border-white/10 rounded-xl shadow-xl overflow-hidden z-50">
-              <button
-                onClick={() => handleRoleSelect('admin')}
-                className="w-full px-4 py-2 text-left text-xs font-semibold text-white hover:bg-white/5 transition-all flex items-center space-x-2"
-              >
-                <Shield className="w-3.5 h-3.5 text-brand-danger" />
-                <span>Admin Role</span>
-              </button>
-              <button
-                onClick={() => handleRoleSelect('doctor')}
-                className="w-full px-4 py-2 text-left text-xs font-semibold text-white hover:bg-white/5 transition-all flex items-center space-x-2"
-              >
-                <Stethoscope className="w-3.5 h-3.5 text-brand-cyan" />
-                <span>Doctor Role</span>
-              </button>
-              <button
-                onClick={() => handleRoleSelect('patient')}
-                className="w-full px-4 py-2 text-left text-xs font-semibold text-white hover:bg-white/5 transition-all flex items-center space-x-2"
-              >
-                <Users className="w-3.5 h-3.5 text-brand-success" />
-                <span>Patient Role</span>
-              </button>
-            </div>
-          )}
-        </div>
+
 
         {/* Alerts Bell */}
         <button

@@ -4,9 +4,9 @@
  * Description: Administrative calendar and appointment log for Admin and Doctors.
  * Used on: App.jsx (guarded route /appointments)
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, parseISO } from 'date-fns';
 import { Calendar as CalendarIcon, List, Plus, ChevronLeft, ChevronRight, Search, Clock, Info, CheckCircle2, User } from 'lucide-react';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
 import { useAuth } from '../../hooks/useAuth';
@@ -14,18 +14,20 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table';
-import { mockAppointments as initialAppointments } from '../../data/mockAppointments';
-import { mockPatients } from '../../data/mockPatients';
-import { mockDoctors } from '../../data/mockDoctors';
+import { getAppointments, getPatients, getDoctors, createAppointment } from '../../api/api';
 
 export const AppointmentManagement = () => {
   useRoleGuard(['admin', 'doctor']);
   const { currentUser } = useAuth();
 
-  const [appointments, setAppointments] = useState(initialAppointments);
-  const [currentMonth, setCurrentMonth] = useState(new Date('2026-06-01')); // Set base to project timeline
-  const [viewMode, setViewMode] = useState('month'); // month or list
+  const [appointments, setAppointments] = useState([]);
+  const [patients, setPatients] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [viewMode, setViewMode] = useState('month');
   const [selectedAppt, setSelectedAppt] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -39,10 +41,21 @@ export const AppointmentManagement = () => {
   const [wizardStep, setWizardStep] = useState(1);
   const [wPatId, setWPatId] = useState('');
   const [wDocId, setWDocId] = useState('');
-  const [wDate, setWDate] = useState('2026-06-10');
+  const [wDate, setWDate] = useState(new Date().toISOString().split('T')[0]);
   const [wSlot, setWSlot] = useState('');
   const [wFormat, setWFormat] = useState('In-Person');
   const [wReason, setWReason] = useState('');
+
+  useEffect(() => {
+    Promise.all([getAppointments(), getPatients(), getDoctors()])
+      .then(([appts, pats, docs]) => {
+        setAppointments(Array.isArray(appts) ? appts : []);
+        setPatients(Array.isArray(pats) ? pats : []);
+        setDoctors(Array.isArray(docs) ? docs : []);
+      })
+      .catch(() => toast.error('Failed to load appointments.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   // Calendar calculations
   const monthStart = startOfMonth(currentMonth);
@@ -74,41 +87,35 @@ export const AppointmentManagement = () => {
     setWizardStep(prev => prev + 1);
   };
 
-  const handleWizardSubmit = () => {
-    const pat = mockPatients.find(p => p.patientId === wPatId);
-    const doc = mockDoctors.find(d => d.doctorId === wDocId);
-
-    const newAppt = {
-      appointmentId: `A${appointments.length + 1 < 100 ? '0' + (appointments.length + 1) : appointments.length + 1}`,
-      patientId: wPatId,
-      patientName: pat?.name || 'Walk-In Patient',
-      doctorId: wDocId,
-      doctorName: doc?.name || 'Assigned Clinician',
-      department: doc?.department || 'General',
-      date: wDate,
-      timeSlot: wSlot,
-      status: 'Scheduled',
-      type: wFormat,
-      reason: wReason
-    };
-
-    setAppointments([newAppt, ...appointments]);
-    setWizardOpen(false);
-    toast.success(`Booking completed for ${newAppt.patientName}`);
-    
-    // Reset wizard
-    setWizardStep(1);
-    setWPatId('');
-    setWDocId('');
-    setWSlot('');
-    setWReason('');
+  const handleWizardSubmit = async () => {
+    const pat = patients.find(p => String(p.patient_id) === wPatId);
+    const doc = doctors.find(d => String(d.doctor_id) === wDocId);
+    try {
+      const result = await createAppointment({
+        patient_id: wPatId,
+        doctor_id: wDocId,
+        appointment_date: wDate,
+        time_slot: wSlot,
+        appointment_type: wFormat,
+        reason: wReason,
+      });
+      if (result.error) throw new Error(result.error);
+      setAppointments(prev => [result, ...prev]);
+      setWizardOpen(false);
+      toast.success(`Booking completed for ${pat?.name || 'patient'}`);
+      setWizardStep(1); setWPatId(''); setWDocId(''); setWSlot(''); setWReason('');
+    } catch {
+      toast.error('Failed to book appointment.');
+    }
   };
 
-  // Filter application
+  // Filter application using API fields
   const filteredAppointments = appointments.filter(app => {
-    const matchesSearch = app.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          app.doctorName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDept = deptFilter === 'All' || app.department === deptFilter;
+    const patName = app.patient?.name || '';
+    const docName = app.doctor?.name || '';
+    const matchesSearch = patName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          docName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDept = deptFilter === 'All' || app.doctor?.specialization === deptFilter;
     const matchesStatus = statusFilter === 'All' || app.status === statusFilter;
     return matchesSearch && matchesDept && matchesStatus;
   });
@@ -191,24 +198,24 @@ export const AppointmentManagement = () => {
           {/* Grid day cells */}
           <div className="grid grid-cols-7 gap-2.5">
             {daysInMonth.map((day, index) => {
-              const dayAppts = appointments.filter(app => isSameDay(new Date(app.date), day));
+              const dayAppts = appointments.filter(app => {
+                try { return isSameDay(parseISO(app.appointment_date), day); } catch { return false; }
+              });
               return (
                 <div
                   key={index}
                   className="min-h-[90px] p-2 bg-[#112255]/20 border border-white/5 rounded-xl flex flex-col justify-between"
                 >
                   <span className="text-xs font-mono font-bold text-text-secondary">{format(day, 'd')}</span>
-                  
-                  {/* Event labels */}
                   <div className="space-y-1 mt-1 overflow-y-auto max-h-[60px]">
                     {dayAppts.slice(0, 3).map((app) => (
                       <div
-                        key={app.appointmentId}
+                        key={app.appointment_id}
                         onClick={() => handleEventClick(app)}
-                        className={`text-[9px] px-1.5 py-0.5 rounded truncate cursor-pointer font-bold ${getFormatClass(app.type)}`}
-                        title={`${app.patientName} - ${app.timeSlot}`}
+                        className={`text-[9px] px-1.5 py-0.5 rounded truncate cursor-pointer font-bold ${getFormatClass(app.appointment_type || app.type)}`}
+                        title={`${app.patient?.name || ''} - ${app.time_slot}`}
                       >
-                        {app.patientName.split(' ')[0]}
+                        {(app.patient?.name || 'Patient').split(' ')[0]}
                       </div>
                     ))}
                     {dayAppts.length > 3 && (
@@ -275,15 +282,17 @@ export const AppointmentManagement = () => {
               </Tr>
             </Thead>
             <Tbody>
-              {filteredAppointments.map((app) => (
-                <Tr key={app.appointmentId}>
-                  <Td className="font-mono text-xs font-bold text-white">{app.appointmentId}</Td>
-                  <Td className="font-bold text-white text-xs">{app.patientName}</Td>
-                  <Td className="text-xs">{app.doctorName}</Td>
-                  <Td className="text-xs">{app.department}</Td>
-                  <Td className="text-xs font-mono">{app.date} • {app.timeSlot}</Td>
+              {loading ? (
+                <Tr><Td colSpan={8} className="px-4 py-6"><SkeletonLoader rows={4} /></Td></Tr>
+              ) : filteredAppointments.map((app) => (
+                <Tr key={app.appointment_id}>
+                  <Td className="font-mono text-xs font-bold text-white">#{app.appointment_id}</Td>
+                  <Td className="font-bold text-white text-xs">{app.patient?.name || '—'}</Td>
+                  <Td className="text-xs">{app.doctor?.name || '—'}</Td>
+                  <Td className="text-xs">{app.doctor?.specialization || '—'}</Td>
+                  <Td className="text-xs font-mono">{app.appointment_date} • {app.time_slot}</Td>
                   <Td>
-                    <Badge variant={app.type === 'In-Person' ? 'cyan' : 'purple'}>{app.type}</Badge>
+                    <Badge variant={app.appointment_type === 'In-Person' ? 'cyan' : 'purple'}>{app.appointment_type || app.type}</Badge>
                   </Td>
                   <Td>
                     <Badge variant={app.status === 'Completed' ? 'success' : app.status === 'Scheduled' ? 'cyan' : 'danger'}>
@@ -291,9 +300,7 @@ export const AppointmentManagement = () => {
                     </Badge>
                   </Td>
                   <Td className="text-center">
-                    <Button variant="outline" className="py-0.5 px-2 text-[9px]" onClick={() => handleEventClick(app)}>
-                      Details
-                    </Button>
+                    <Button variant="outline" className="py-0.5 px-2 text-[9px]" onClick={() => handleEventClick(app)}>Details</Button>
                   </Td>
                 </Tr>
               ))}
@@ -313,24 +320,24 @@ export const AppointmentManagement = () => {
           <div className="space-y-4 text-left select-none text-xs leading-relaxed">
             <div className="pb-2.5 border-b border-white/5">
               <span className="text-[9px] uppercase tracking-widest text-text-secondary">Patient Profile</span>
-              <h4 className="text-sm font-bold text-white mt-0.5">{selectedAppt.patientName}</h4>
-              <p className="text-[10px] text-text-secondary/70">ID: {selectedAppt.patientId}</p>
+              <h4 className="text-sm font-bold text-white mt-0.5">{selectedAppt.patient?.name || '—'}</h4>
+              <p className="text-[10px] text-text-secondary/70">ID: #{selectedAppt.patient_id}</p>
             </div>
 
             <div className="pb-2.5 border-b border-white/5">
               <span className="text-[9px] uppercase tracking-widest text-text-secondary">Consulting Clinician</span>
-              <h4 className="text-sm font-bold text-white mt-0.5">{selectedAppt.doctorName}</h4>
-              <p className="text-[10px] text-text-secondary/70">{selectedAppt.department} Department</p>
+              <h4 className="text-sm font-bold text-white mt-0.5">{selectedAppt.doctor?.name || '—'}</h4>
+              <p className="text-[10px] text-text-secondary/70">{selectedAppt.doctor?.specialization} Department</p>
             </div>
 
             <div className="pb-2.5 border-b border-white/5 grid grid-cols-2 gap-2">
               <div>
                 <span className="text-[9px] uppercase tracking-widest text-text-secondary">Date</span>
-                <p className="font-mono text-white mt-0.5 font-bold">{selectedAppt.date}</p>
+                <p className="font-mono text-white mt-0.5 font-bold">{selectedAppt.appointment_date}</p>
               </div>
               <div>
                 <span className="text-[9px] uppercase tracking-widest text-text-secondary">Time Slot</span>
-                <p className="font-mono text-white mt-0.5 font-bold">{selectedAppt.timeSlot}</p>
+                <p className="font-mono text-white mt-0.5 font-bold">{selectedAppt.time_slot}</p>
               </div>
             </div>
 
@@ -386,9 +393,9 @@ export const AppointmentManagement = () => {
                 className="w-full bg-[#112255]/40 border border-white/10 rounded-lg px-3 py-2.5 text-xs text-white outline-none"
               >
                 <option value="">-- Choose Patient File --</option>
-                {mockPatients.map(p => (
-                  <option key={p.patientId} value={p.patientId}>
-                    {p.name} ({p.patientId})
+                {patients.map(p => (
+                  <option key={p.patient_id} value={String(p.patient_id)}>
+                    {p.name} (#{p.patient_id})
                   </option>
                 ))}
               </select>
@@ -404,8 +411,8 @@ export const AppointmentManagement = () => {
                 className="w-full bg-[#112255]/40 border border-white/10 rounded-lg px-3 py-2.5 text-xs text-white outline-none"
               >
                 <option value="">-- Assign Doctor --</option>
-                {mockDoctors.map(d => (
-                  <option key={d.doctorId} value={d.doctorId}>
+                {doctors.map(d => (
+                  <option key={d.doctor_id} value={String(d.doctor_id)}>
                     {d.name} ({d.specialization})
                   </option>
                 ))}
@@ -497,8 +504,8 @@ export const AppointmentManagement = () => {
             <div className="space-y-3">
               <span className="text-[10px] uppercase font-bold text-text-secondary tracking-widest block">Step 5: Verify & Confirm</span>
               <div className="p-4 bg-[#112255]/40 border border-white/5 rounded-2xl space-y-2 text-xs">
-                <p>Patient Name: <span className="text-white font-bold">{mockPatients.find(p => p.patientId === wPatId)?.name}</span></p>
-                <p>Doctor: <span className="text-white font-bold">{mockDoctors.find(d => d.doctorId === wDocId)?.name}</span></p>
+                <p>Patient Name: <span className="text-white font-bold">{patients.find(p => String(p.patient_id) === wPatId)?.name}</span></p>
+                <p>Doctor: <span className="text-white font-bold">{doctors.find(d => String(d.doctor_id) === wDocId)?.name}</span></p>
                 <p>Scheduled: <span className="text-brand-cyan font-bold font-mono">{wDate} @ {wSlot}</span></p>
                 <p>Format: <span className="text-white font-bold">{wFormat}</span></p>
                 <p className="border-t border-white/5 pt-2 mt-2 text-text-secondary italic">

@@ -148,7 +148,7 @@ export const DoctorDashboard = () => {
       <div className="bg-gradient-to-r from-surface-secondary to-[#0d2044] rounded-2xl border border-white/8 p-6 flex flex-col md:flex-row md:items-center justify-between shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
         <div>
           <h2 className="text-xl md:text-2xl font-black text-white">Good morning, {currentUser?.username}</h2>
-          <p className="text-xs text-text-secondary mt-1">Specialist, Department of {currentUser?.department}</p>
+          <p className="text-xs text-text-secondary mt-1">Specialist, Department of {typeof currentUser?.department === 'object' ? currentUser?.department?.department_name : currentUser?.department}</p>
         </div>
         <div className="mt-4 md:mt-0 text-left md:text-right font-mono">
           <p className="text-xl font-extrabold text-brand-cyan">{timeStr}</p>

@@ -75,11 +75,12 @@ export const BookAppointment = () => {
     setSubmitting(true);
     try {
       await createAppointment({
-        doctor_id:   selectedDoctor.doctor_id,
-        date:        selectedDate,
-        time_slot:   selectedSlot,
-        type:        apptFormat,
-        reason:      complaintText
+        doctor_id:        selectedDoctor.doctor_id,
+        department_id:    selectedDoctor.department_id || selectedDoctor.department?.department_id,
+        appointment_date: selectedDate,
+        appointment_time: selectedSlot,
+        type:             apptFormat,
+        reason:           complaintText
       });
       toast.success('Appointment booked successfully! Notifications sent.');
       navigate('/patient/dashboard');
@@ -142,7 +143,7 @@ export const BookAppointment = () => {
                   <div>
                     <span className="text-xs font-bold text-white block">{doc.name}</span>
                     <span className="text-[10px] text-text-secondary mt-0.5 block">{doc.specialization}</span>
-                    <span className="text-[9px] font-mono text-brand-cyan block mt-1">{doc.department} dept</span>
+                    <span className="text-[9px] font-mono text-brand-cyan block mt-1">{typeof doc.department === 'object' ? doc.department?.department_name : doc.department} dept</span>
                   </div>
                   <Badge variant="success" className="text-[8px] py-0">Available</Badge>
                 </div>

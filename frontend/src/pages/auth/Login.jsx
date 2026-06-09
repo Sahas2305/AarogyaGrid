@@ -123,20 +123,7 @@ export const Login = () => {
     }
   };
 
-  const handleQuickLogin = async (role) => {
-    setLoading(true);
-    try {
-      const user = await login(role);  // switchRole calls real API with demo creds
-      toast.success(`Demo Access: ${role.toUpperCase()} portal`);
-      if (role === 'admin')   navigate('/admin/dashboard');
-      else if (role === 'doctor')  navigate('/doctor/dashboard');
-      else if (role === 'patient') navigate('/patient/dashboard');
-    } catch (err) {
-      toast.error('Demo login failed — is the backend running?');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   return (
     <div className="min-h-screen bg-[#0a1628] flex items-center justify-center p-4 md:p-6 overflow-x-hidden">
@@ -337,37 +324,7 @@ export const Login = () => {
             )}
           </div>
 
-          {/* Quick Grading Demo login Section */}
-          <div className="mt-8 pt-6 border-t border-white/5 select-none">
-            <p className="text-[10px] text-text-secondary uppercase font-bold tracking-widest text-center mb-3">Demo Evaluation — Direct Access</p>
-            <div className="grid grid-cols-3 gap-3">
-              
-              <div
-                onClick={() => handleQuickLogin('admin')}
-                className="p-3 bg-brand-danger/10 border border-brand-danger/20 hover:border-brand-danger hover:bg-brand-danger/20 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-95"
-              >
-                <Shield className="w-5 h-5 text-brand-danger" />
-                <span className="text-[10px] font-bold text-white mt-1">Admin Portal</span>
-              </div>
 
-              <div
-                onClick={() => handleQuickLogin('doctor')}
-                className="p-3 bg-brand-cyan/10 border border-brand-cyan/20 hover:border-brand-cyan hover:bg-brand-cyan/20 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-95"
-              >
-                <Stethoscope className="w-5 h-5 text-brand-cyan" />
-                <span className="text-[10px] font-bold text-white mt-1">Doctor Portal</span>
-              </div>
-
-              <div
-                onClick={() => handleQuickLogin('patient')}
-                className="p-3 bg-brand-success/10 border border-brand-success/20 hover:border-brand-success hover:bg-brand-success/20 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-95"
-              >
-                <Users className="w-5 h-5 text-brand-success" />
-                <span className="text-[10px] font-bold text-white mt-1">Patient Portal</span>
-              </div>
-
-            </div>
-          </div>
 
         </div>
       </div>

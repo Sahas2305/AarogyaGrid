@@ -94,7 +94,7 @@ export const MyAppointments = () => {
                     </Badge>
                   </div>
                   <h4 className="text-sm font-bold text-white tracking-wide">{app.doctor_name}</h4>
-                  <p className="text-xs text-text-secondary mt-1">{app.department} Department</p>
+                  <p className="text-xs text-text-secondary mt-1">{typeof app.department === 'object' ? app.department?.department_name : app.department} Department</p>
                   <div className="flex items-center space-x-4 mt-3 text-xs text-brand-cyan font-semibold">
                     <span className="flex items-center space-x-1">
                       <Calendar className="w-3.5 h-3.5" /><span>{app.date}</span>
@@ -151,8 +151,8 @@ export const MyAppointments = () => {
                 <Td className="font-mono text-xs font-bold text-white">{app.appointment_id}</Td>
                 <Td className="font-bold text-white text-xs">{app.doctor_name}</Td>
                 <Td className="text-xs font-mono">{app.date} • {app.time_slot}</Td>
-                <Td className="text-xs">{app.department}</Td>
-                <Td><Badge variant={app.type === 'In-Person' ? 'cyan' : 'purple'}>{app.type}</Badge></Td>
+                <Td className="text-xs">{typeof app.department === 'object' ? app.department?.department_name : app.department}</Td>
+                <Td><Badge variant={(app.type || 'In-Person') === 'In-Person' ? 'cyan' : 'purple'}>{app.type || 'In-Person'}</Badge></Td>
                 <Td className="text-xs text-text-secondary max-w-[200px] truncate" title={app.reason}>{app.reason}</Td>
                 <Td><Badge variant={getStatusVariant(app.status)}>{app.status}</Badge></Td>
               </Tr>

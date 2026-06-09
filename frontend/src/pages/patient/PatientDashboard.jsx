@@ -110,7 +110,7 @@ export const PatientDashboard = () => {
                 <Card key={app.appointment_id} className="p-4 bg-surface-card border border-white/5 flex items-center justify-between">
                   <div>
                     <h4 className="text-xs font-bold text-white">{app.doctor_name || '—'}</h4>
-                    <p className="text-[10px] text-text-secondary mt-0.5">{app.department} Department</p>
+                    <p className="text-[10px] text-text-secondary mt-0.5">{typeof app.department === 'object' ? app.department?.department_name : app.department} Department</p>
                     <span className="text-[10px] font-mono text-brand-cyan mt-1 block">
                       {app.date} @ {app.time_slot}
                     </span>
@@ -142,7 +142,7 @@ export const PatientDashboard = () => {
                   <Tr key={app.appointment_id}>
                     <Td className="font-bold text-white text-xs">{app.doctor_name || '—'}</Td>
                     <Td className="text-xs font-mono">{app.date}</Td>
-                    <Td className="text-xs">{app.department}</Td>
+                    <Td className="text-xs">{typeof app.department === 'object' ? app.department?.department_name : app.department}</Td>
                     <Td>
                       <Badge variant={app.status === 'Completed' ? 'success' : 'danger'}>{app.status}</Badge>
                     </Td>

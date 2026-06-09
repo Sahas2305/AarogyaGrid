@@ -13,7 +13,7 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table';
-import { mockDiagnosisHistory } from '../../data/mockAIDiagnosis';
+import { submitSymptoms, getAIDiagnosis } from '../../api/api';
 
 const symptomChips = [
   'Chest Pain', 'Shortness of breath', 'Severe Headache', 'High Fever',
@@ -30,6 +30,7 @@ export const AISymptomChecker = ({ viewMode = 'patient' }) => {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef(null);
+  const [diagHistory, setDiagHistory] = useState([]);
 
   // Diagnostic output states (Rahul Mehta default sample check)
   const [condition, setCondition] = useState('Acute Coronary Syndrome (ACS)');
@@ -298,18 +299,20 @@ export const AISymptomChecker = ({ viewMode = 'patient' }) => {
             </Tr>
           </Thead>
           <Tbody>
-            {mockDiagnosisHistory.map((log) => (
-              <Tr key={log.logId}>
-                <Td className="font-mono text-xs font-bold text-white">{log.logId}</Td>
-                <Td className="text-xs font-mono text-text-secondary">{log.date}</Td>
-                <Td className="text-xs text-white max-w-[200px] truncate" title={log.symptoms}>{log.symptoms}</Td>
-                <Td className="text-xs font-semibold text-white">{log.condition}</Td>
-                <Td>
-                  <Badge variant={getUrgencyVariant(log.urgency)} className="text-[9px] uppercase py-0 px-2 font-bold">{log.urgency}</Badge>
-                </Td>
-                <Td className="text-center font-mono text-xs text-brand-cyan font-bold">{log.confidence}%</Td>
-              </Tr>
-            ))}
+            {diagHistory.length === 0 ? (
+            <Tr><Td colSpan={6} className="text-center py-8 text-text-secondary/50 text-xs">No diagnosis sessions logged yet. Submit symptoms above to begin.</Td></Tr>
+          ) : diagHistory.map((log) => (
+            <Tr key={log.logId}>
+              <Td className="font-mono text-xs font-bold text-white">{log.logId}</Td>
+              <Td className="text-xs font-mono text-text-secondary">{log.date}</Td>
+              <Td className="text-xs text-white max-w-[200px] truncate" title={log.symptoms}>{log.symptoms}</Td>
+              <Td className="text-xs font-semibold text-white">{log.condition}</Td>
+              <Td>
+                <Badge variant={getUrgencyVariant(log.urgency)} className="text-[9px] uppercase py-0 px-2 font-bold">{log.urgency}</Badge>
+              </Td>
+              <Td className="text-center font-mono text-xs text-brand-cyan font-bold">{log.confidence}%</Td>
+            </Tr>
+          ))}
           </Tbody>
         </Table>
       </div>

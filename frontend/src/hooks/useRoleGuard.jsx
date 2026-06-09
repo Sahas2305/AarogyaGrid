@@ -33,7 +33,7 @@ export const useRoleGuard = (allowedRoles) => {
 
 // Component Wrapper version
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 
 export const RoleGuard = ({ children, allowedRoles }) => {
   const { currentUser } = useAuth();
@@ -49,5 +49,5 @@ export const RoleGuard = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  return children || <Outlet />;
 };

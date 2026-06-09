@@ -4,7 +4,7 @@
  * Description: Renders the billing transactions ledger, filtering views based on user roles.
  * Used on: App.jsx (guarded route /billing)
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { CreditCard, ShieldAlert, Award, Check, Search, Filter, Eye } from 'lucide-react';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
@@ -14,9 +14,10 @@ import { StatCard } from '../../components/ui/StatCard';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table';
 import { CustomLineChart } from '../../components/charts/LineChart';
-import { mockBilling as defaultBilling } from '../../data/mockBilling';
+import { getBilling } from '../../api/api';
 
 // 12-Month revenue data series
 const revenueData = [
@@ -39,7 +40,8 @@ export const BillingPage = () => {
   const { currentUser } = useAuth();
   const isAdminOrDoctor = currentUser?.role === 'admin' || currentUser?.role === 'doctor';
 
-  const [billingList, setBillingList] = useState(defaultBilling);
+  const [billingList, setBillingList] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   
@@ -47,16 +49,23 @@ export const BillingPage = () => {
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
-  // Role-based filtering
+  useEffect(() => {
+    getBilling()
+      .then(data => setBillingList(Array.isArray(data) ? data : []))
+      .catch(() => toast.error('Failed to load billing data.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Role-based filtering using API fields
   const filteredBilling = billingList.filter(bill => {
-    // If patient, only view P01 records
-    const matchesRole = isAdminOrDoctor || bill.patientId === 'P01';
-    
-    const matchesSearch = bill.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          bill.billId.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'All' || bill.status === statusFilter;
-    
+    const matchesRole = isAdminOrDoctor || bill.appointment?.patient_id === currentUser?.linked_id;
+    const patientName = bill.patient?.name || '';
+    const matchesSearch = patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          String(bill.billing_id).includes(searchTerm);
+    const isPaid = !!bill.payment_method;
+    const matchesStatus = statusFilter === 'All' ||
+      (statusFilter === 'Paid' && isPaid) ||
+      (statusFilter === 'Pending' && !isPaid);
     return matchesRole && matchesSearch && matchesStatus;
   });
 
@@ -158,7 +167,9 @@ export const BillingPage = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {filteredBilling.length === 0 ? (
+            {loading ? (
+              <Tr><Td colSpan={8} className="px-4 py-6"><SkeletonLoader rows={4} /></Td></Tr>
+            ) : filteredBilling.length === 0 ? (
               <Tr>
                 <Td colSpan={8} className="text-center py-10 text-text-secondary/50 text-xs">
                   No billing transactions logged.
@@ -166,15 +177,17 @@ export const BillingPage = () => {
               </Tr>
             ) : (
               filteredBilling.map((bill) => (
-                <Tr key={bill.billId}>
-                  <Td className="font-mono text-xs font-bold text-white">{bill.billId}</Td>
-                  <Td className="font-bold text-white text-xs">{bill.patientName}</Td>
-                  <Td className="text-xs font-mono">{bill.date}</Td>
-                  <Td className="text-xs text-white font-mono">₹{bill.totalAmount.toLocaleString('en-IN')}</Td>
-                  <Td className="text-xs text-text-secondary font-mono">₹{bill.insuranceClaimed.toLocaleString('en-IN')}</Td>
-                  <Td className="text-xs text-brand-cyan font-bold font-mono">₹{bill.paidAmount.toLocaleString('en-IN')}</Td>
+                <Tr key={bill.billing_id}>
+                  <Td className="font-mono text-xs font-bold text-white">#{bill.billing_id}</Td>
+                  <Td className="font-bold text-white text-xs">{bill.patient?.name || '—'}</Td>
+                  <Td className="text-xs font-mono">{bill.appointment?.appointment_date || '—'}</Td>
+                  <Td className="text-xs text-white font-mono">₹{Number(bill.amount).toLocaleString('en-IN')}</Td>
+                  <Td className="text-xs text-text-secondary font-mono">—</Td>
+                  <Td className="text-xs text-brand-cyan font-bold font-mono">₹{Number(bill.amount).toLocaleString('en-IN')}</Td>
                   <Td>
-                    <Badge variant={bill.status === 'Paid' ? 'success' : 'danger'}>{bill.status}</Badge>
+                    <Badge variant={bill.payment_method ? 'success' : 'danger'}>
+                      {bill.payment_method ? 'Paid' : 'Pending'}
+                    </Badge>
                   </Td>
                   <Td className="text-center">
                     <Button
@@ -220,12 +233,12 @@ export const BillingPage = () => {
               <p className="text-[10px] text-text-secondary">Kumaraswamy Layout, Bangalore - 560078</p>
               <div className="flex items-center justify-between mt-4 text-[10px] text-text-secondary">
                 <div>
-                  <p>Invoiced To: <span className="text-white font-bold">{selectedInvoice.patientName}</span></p>
-                  <p>Patient ID: <span className="text-white font-mono">{selectedInvoice.patientId}</span></p>
+                  <p>Invoiced To: <span className="text-white font-bold">{selectedInvoice.patient?.name || '—'}</span></p>
+                  <p>Appointment: <span className="text-white font-mono">#{selectedInvoice.appointment_id}</span></p>
                 </div>
                 <div className="text-right">
-                  <p>Date: <span className="text-white font-mono">{selectedInvoice.date}</span></p>
-                  <p>Status: <span className={selectedInvoice.status === 'Paid' ? 'text-brand-success font-extrabold' : 'text-brand-danger font-extrabold'}>{selectedInvoice.status}</span></p>
+                  <p>Amount: <span className="text-brand-cyan font-mono">₹{Number(selectedInvoice.amount).toLocaleString('en-IN')}</span></p>
+                  <p>Status: <span className={selectedInvoice.payment_method ? 'text-brand-success font-extrabold' : 'text-brand-danger font-extrabold'}>{selectedInvoice.payment_method ? 'Paid' : 'Pending'}</span></p>
                 </div>
               </div>
             </div>
@@ -242,11 +255,11 @@ export const BillingPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-white">
-                  {selectedInvoice.items.map((item, idx) => (
+                  {(selectedInvoice.items || []).map((item, idx) => (
                     <tr key={idx}>
                       <td className="py-2 text-text-secondary hover:text-white transition-colors">{item.description}</td>
                       <td className="py-2 text-right font-mono">{item.quantity}</td>
-                      <td className="py-2 text-right font-mono">₹{item.amount.toLocaleString('en-IN')}</td>
+                      <td className="py-2 text-right font-mono">₹{item.amount?.toLocaleString('en-IN')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -256,16 +269,16 @@ export const BillingPage = () => {
             {/* Calculations summaries */}
             <div className="border-t border-white/5 pt-4 mt-6 z-10 relative text-xs space-y-1.5 w-60 ml-auto">
               <div className="flex justify-between text-text-secondary">
-                <span>Subtotal Charges:</span>
-                <span className="font-mono text-white">₹{selectedInvoice.totalAmount.toLocaleString('en-IN')}</span>
+                <span>Total Amount:</span>
+                <span className="font-mono text-white">₹{Number(selectedInvoice.amount).toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between text-text-secondary">
-                <span>Insurance Coverage:</span>
-                <span className="font-mono text-brand-success">- ₹{selectedInvoice.insuranceClaimed.toLocaleString('en-IN')}</span>
+                <span>Payment Method:</span>
+                <span className="text-white">{selectedInvoice.payment_method || 'Not paid yet'}</span>
               </div>
               <div className="flex justify-between text-base font-extrabold text-white pt-2 border-t border-white/5">
-                <span>Patient Balance Due:</span>
-                <span className="font-mono text-brand-cyan">₹{selectedInvoice.paidAmount.toLocaleString('en-IN')}</span>
+                <span>Payment Date:</span>
+                <span className="font-mono text-brand-cyan">{selectedInvoice.payment_date || '—'}</span>
               </div>
             </div>
 
@@ -274,14 +287,6 @@ export const BillingPage = () => {
               <Button variant="outline" className="text-xs" onClick={() => setInvoiceOpen(false)}>
                 Close Invoice
               </Button>
-              {selectedInvoice.status === 'Pending' && !isAdminOrDoctor && (
-                <Button
-                  className="text-xs font-bold"
-                  onClick={() => handlePayInvoice(selectedInvoice.billId)}
-                >
-                  Pay Balance (INR)
-                </Button>
-              )}
             </div>
 
           </div>

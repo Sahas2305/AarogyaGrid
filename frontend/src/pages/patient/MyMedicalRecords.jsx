@@ -81,22 +81,23 @@ export const MyMedicalRecords = () => {
           </Card>
         ) : filtered.map((rec) => {
           const isOpen = expandedId === rec.record_id;
+          const deptName = typeof rec.department === 'object' ? rec.department?.department_name : rec.department;
           return (
             <Card key={rec.record_id}
               className={`p-0 overflow-hidden transition-all duration-200 bg-surface-card ${
                 isOpen ? 'border-white/15' : 'border-white/5'
-              } ${getDeptBorderColor(rec.department)}`}>
+              } ${getDeptBorderColor(deptName)}`}>
               <div onClick={() => toggleExpand(rec.record_id)}
                 className="p-5 flex items-center justify-between cursor-pointer hover:bg-white/[0.01]">
                 <div className="truncate pr-2">
                   <span className="text-sm font-bold text-white block">{rec.diagnosis}</span>
                   <span className="text-[10px] text-text-secondary/60 mt-1 block">
-                    Encounter Date: {rec.record_date} • {rec.doctor_name} ({rec.department})
+                    Encounter Date: {rec.record_date} • {rec.doctor_name} ({deptName})
                   </span>
                 </div>
                 <div className="text-text-secondary flex items-center space-x-3 flex-shrink-0">
                   <Badge variant="cyan" className="text-[9px] font-bold uppercase tracking-wider py-0 px-2.5">
-                    {rec.department}
+                    {deptName}
                   </Badge>
                   {isOpen ? <ChevronUp className="w-4 h-4 text-brand-cyan" /> : <ChevronDown className="w-4 h-4" />}
                 </div>

@@ -105,7 +105,7 @@ export const DoctorAppointments = () => {
                         <span className="text-[10px] text-text-secondary/70">{app.time_slot}</span>
                       </div>
                     </Td>
-                    <Td className="text-xs">{app.department}</Td>
+                    <Td className="text-xs">{typeof app.department === 'object' ? app.department?.department_name : app.department}</Td>
                     <Td>
                       <Badge variant={app.type === 'In-Person' ? 'cyan' : 'purple'}>
                         {app.type}

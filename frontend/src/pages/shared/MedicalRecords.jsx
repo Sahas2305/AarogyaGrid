@@ -4,7 +4,7 @@
  * Description: Renders the clinical chart database for Admin and Doctors.
  * Used on: App.jsx (guarded route /records)
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { FileHeart, Search, Plus, Heart, Activity, Thermometer, Wind, ShieldAlert, Save } from 'lucide-react';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
@@ -14,22 +14,22 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Drawer } from '../../components/ui/Drawer';
 import { StatCard } from '../../components/ui/StatCard';
-import { mockMedicalRecords as initialRecords } from '../../data/mockMedicalRecords';
-import { mockPatients } from '../../data/mockPatients';
-import { mockDoctors } from '../../data/mockDoctors';
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
+import { getMedicalRecords, getPatients, createMedicalRecord } from '../../api/api';
 
 export const MedicalRecords = () => {
   useRoleGuard(['admin', 'doctor']);
   const { currentUser } = useAuth();
 
-  const [records, setRecords] = useState(initialRecords);
+  const [records, setRecords] = useState([]);
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Form State
   const [wPatId, setWPatId] = useState('');
-  const [wDocId, setWDocId] = useState('D01');
   const [wDiag, setWDiag] = useState('');
   const [wTreat, setWTreat] = useState('');
   const [wPresc, setWPresc] = useState('');
@@ -39,52 +39,50 @@ export const MedicalRecords = () => {
   const [wTemp, setWTemp] = useState('98.6');
   const [wSpo2, setWSpo2] = useState('98');
 
-  // Filter records
+  useEffect(() => {
+    Promise.all([getMedicalRecords(), getPatients()])
+      .then(([recs, pats]) => {
+        setRecords(Array.isArray(recs) ? recs : []);
+        setPatients(Array.isArray(pats) ? pats : []);
+      })
+      .catch(() => toast.error('Failed to load records.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Filter using API field names
   const filteredRecords = records.filter(rec =>
-    rec.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rec.diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rec.recordId.toLowerCase().includes(searchTerm.toLowerCase())
+    (rec.patient?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (rec.diagnosis || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    String(rec.record_id).includes(searchTerm)
   );
 
   const toggleExpand = (id) => {
     setExpandedId(prev => (prev === id ? null : id));
   };
 
-  const handleAddRecord = (e) => {
+  const handleAddRecord = async (e) => {
     e.preventDefault();
     if (!wPatId || !wDiag || !wTreat || !wPresc) {
       toast.error('Please complete all required fields.');
       return;
     }
-
-    const pat = mockPatients.find(p => p.patientId === wPatId);
-    const doc = mockDoctors.find(d => d.doctorId === wDocId);
-
-    const newRecord = {
-      recordId: `R0${records.length + 1 < 10 ? '0' + (records.length + 1) : records.length + 1}`,
-      patientId: wPatId,
-      patientName: pat?.name || 'Walk-In Patient',
-      doctorId: wDocId,
-      doctorName: doc?.name || 'Dr. Priya Sharma',
-      department: doc?.department || 'Cardiology',
-      date: new Date().toISOString().split('T')[0],
-      diagnosis: wDiag,
-      treatment: wTreat,
-      prescription: wPresc,
-      notes: wNotes,
-      vitals: { bp: wBp, hr: parseInt(wHr), temp: parseFloat(wTemp), spo2: parseInt(wSpo2) }
-    };
-
-    setRecords([newRecord, ...records]);
-    setDrawerOpen(false);
-    toast.success(`Encounter Record committed successfully for ${newRecord.patientName}`);
-
-    // Reset Form
-    setWPatId('');
-    setWDiag('');
-    setWTreat('');
-    setWPresc('');
-    setWNotes('');
+    try {
+      const payload = {
+        patient_id: wPatId,
+        diagnosis: wDiag,
+        treatment: wTreat,
+        prescription: wPresc,
+        notes: wNotes,
+      };
+      const result = await createMedicalRecord(payload);
+      if (result.error) throw new Error(result.error);
+      setRecords(prev => [result, ...prev]);
+      setDrawerOpen(false);
+      toast.success('Encounter record committed successfully!');
+      setWPatId(''); setWDiag(''); setWTreat(''); setWPresc(''); setWNotes('');
+    } catch {
+      toast.error('Failed to commit record.');
+    }
   };
 
   // Border colors based on department
@@ -134,34 +132,37 @@ export const MedicalRecords = () => {
 
       {/* Accordion Cards Grid */}
       <div className="space-y-4 max-w-4xl">
-        {filteredRecords.length === 0 ? (
+        {loading ? (
+          <SkeletonLoader rows={4} />
+        ) : filteredRecords.length === 0 ? (
           <Card className="p-10 border border-white/5 border-dashed text-center text-text-secondary/50 text-xs">
             No medical encounter records found in DB.
           </Card>
         ) : (
           filteredRecords.map((rec) => {
-            const isOpen = expandedId === rec.recordId;
+            const isOpen = expandedId === rec.record_id;
+            const deptName = typeof rec.department === 'object' ? rec.department?.department_name : rec.department;
             return (
               <Card
-                key={rec.recordId}
+                key={rec.record_id}
                 className={`p-0 overflow-hidden transition-all duration-200 bg-surface-card ${
                   isOpen ? 'border-white/15 animate-pulse-cyan' : 'border-white/5'
-                } ${getDeptBorderColor(rec.department)}`}
+                } ${getDeptBorderColor(deptName)}`}
               >
                 {/* Header Section */}
                 <div
-                  onClick={() => toggleExpand(rec.recordId)}
+                  onClick={() => toggleExpand(rec.record_id)}
                   className="p-5 flex items-center justify-between cursor-pointer hover:bg-white/[0.01]"
                 >
                   <div className="truncate pr-2">
                     <span className="text-sm font-bold text-white block truncate">{rec.diagnosis}</span>
                     <span className="text-[10px] text-text-secondary/60 mt-1 block">
-                      ID: {rec.recordId} • Patient: <span className="text-white font-bold">{rec.patientName}</span> • Date: {rec.date}
+                      ID: #{rec.record_id} • Patient: <span className="text-white font-bold">{rec.patient?.name || '—'}</span> • Date: {rec.visit_date}
                     </span>
                   </div>
                   <div className="text-text-secondary flex items-center space-x-3 flex-shrink-0">
                     <Badge variant="cyan" className="text-[9px] font-bold uppercase tracking-wider py-0 px-2.5">
-                      {rec.department}
+                      {deptName}
                     </Badge>
                   </div>
                 </div>
@@ -169,24 +170,23 @@ export const MedicalRecords = () => {
                 {/* Collapsible Details */}
                 {isOpen && (
                   <div className="p-5 bg-black/15 border-t border-white/5 space-y-5">
-                    
                     {/* Vitals metrics */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <StatCard small title="Blood Pressure" value={rec.vitals.bp} icon={Heart} />
-                      <StatCard small title="Heart Rate" value={`${rec.vitals.hr} bpm`} icon={Activity} />
-                      <StatCard small title="Temperature" value={`${rec.vitals.temp} °F`} icon={Thermometer} />
-                      <StatCard small title="Oxygen Saturation" value={`${rec.vitals.spo2} %`} icon={Wind} />
+                      <StatCard small title="Blood Pressure" value={rec.vitals?.bp || '—'} icon={Heart} />
+                      <StatCard small title="Heart Rate" value={rec.vitals?.hr ? `${rec.vitals.hr} bpm` : '—'} icon={Activity} />
+                      <StatCard small title="Temperature" value={rec.vitals?.temp ? `${rec.vitals.temp} °F` : '—'} icon={Thermometer} />
+                      <StatCard small title="Oxygen Saturation" value={rec.vitals?.spo2 ? `${rec.vitals.spo2} %` : '—'} icon={Wind} />
                     </div>
 
                     <div className="space-y-3.5 text-xs leading-relaxed">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <span className="text-[9px] uppercase font-bold text-text-secondary tracking-widest block">Attending Clinician</span>
-                          <span className="text-white font-bold block mt-1">{rec.doctorName}</span>
+                          <span className="text-white font-bold block mt-1">{rec.doctor?.name || '—'}</span>
                         </div>
                         <div>
                           <span className="text-[9px] uppercase font-bold text-text-secondary tracking-widest block">Consulting Department</span>
-                          <span className="text-brand-cyan font-bold block mt-1">{rec.department} Clinic</span>
+                          <span className="text-brand-cyan font-bold block mt-1">{deptName || 'General'} Clinic</span>
                         </div>
                       </div>
 
@@ -238,9 +238,9 @@ export const MedicalRecords = () => {
               required
             >
               <option value="">-- Choose Patient File --</option>
-              {mockPatients.map(p => (
-                <option key={p.patientId} value={p.patientId}>
-                  {p.name} ({p.patientId})
+              {patients.map(p => (
+                <option key={p.patient_id} value={String(p.patient_id)}>
+                  {p.name} (#{p.patient_id})
                 </option>
               ))}
             </select>

@@ -3,28 +3,40 @@
  * Props: None
  * Description: Patient portal page to explain laboratory metrics in plain language.
  * Used on: App.jsx (guarded route /patient/report-explainer)
+ * CHANGES: Replaced mock data with real API call via getLabReports().
+ * Field mapping: test_id, test_name, test_date, result, notes
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { Brain, Search, Sparkles, AlertTriangle, ShieldAlert, FileDigit } from 'lucide-react';
+import { Brain, Sparkles, AlertTriangle, ShieldAlert, FileDigit } from 'lucide-react';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Badge } from '../../components/ui/Badge';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table';
-import { mockLabReports } from '../../data/mockLabReports';
+import { getLabReports } from '../../api/api';
 
 export const AIReportExplainer = () => {
   useRoleGuard(['patient']);
 
-  // Filter completed labs for patient Rahul Mehta (P01)
-  const completedLabs = mockLabReports.filter(lab => lab.patientId === 'P01' && lab.status === 'Completed');
-  const [selectedReportId, setSelectedReportId] = useState(completedLabs[0]?.reportId || '');
+  const [labReports, setLabReports] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(true);
+  const [selectedReportId, setSelectedReportId] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showExplanation, setShowExplanation] = useState(true);
+  const [showExplanation, setShowExplanation] = useState(false);
 
-  const activeReport = completedLabs.find(l => l.reportId === selectedReportId) || completedLabs[0];
+  useEffect(() => {
+    getLabReports()
+      .then(data => {
+        const reports = Array.isArray(data) ? data : [];
+        setLabReports(reports);
+        if (reports.length > 0) setSelectedReportId(String(reports[0].test_id));
+      })
+      .catch(() => toast.error('Failed to load lab reports.'))
+      .finally(() => setLoadingReports(false));
+  }, []);
+
+  const activeReport = labReports.find(l => String(l.test_id) === selectedReportId) || labReports[0];
 
   const handleRunExplainer = (e) => {
     e.preventDefault();
@@ -56,7 +68,7 @@ export const AIReportExplainer = () => {
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Left Column: Selector and parameters table */}
+        {/* Left Column: Selector */}
         <div className="lg:col-span-6 space-y-5">
           <Card className="p-5 space-y-4 bg-surface-card border border-white/5">
             <div className="flex items-center space-x-2 border-b border-white/5 pb-2.5">
@@ -66,21 +78,25 @@ export const AIReportExplainer = () => {
 
             <form onSubmit={handleRunExplainer} className="flex flex-col sm:flex-row items-end gap-3">
               <div className="space-y-1 flex-1">
-                <label className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Completed Reports</label>
-                <select
-                  value={selectedReportId}
-                  onChange={(e) => {
-                    setSelectedReportId(e.target.value);
-                    setShowExplanation(false);
-                  }}
-                  className="w-full bg-[#112255]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-brand-cyan/40 cursor-pointer"
-                >
-                  {completedLabs.map(l => (
-                    <option key={l.reportId} value={l.reportId}>
-                      {l.testName} ({l.date})
-                    </option>
-                  ))}
-                </select>
+                <label className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Available Lab Tests</label>
+                {loadingReports ? (
+                  <SkeletonLoader rows={1} />
+                ) : (
+                  <select
+                    value={selectedReportId}
+                    onChange={(e) => {
+                      setSelectedReportId(e.target.value);
+                      setShowExplanation(false);
+                    }}
+                    className="w-full bg-[#112255]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-brand-cyan/40 cursor-pointer"
+                  >
+                    {labReports.map(l => (
+                      <option key={l.test_id} value={String(l.test_id)}>
+                        {l.test_name} ({l.test_date})
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <Button
                 type="submit"
@@ -92,34 +108,34 @@ export const AIReportExplainer = () => {
             </form>
           </Card>
 
-          {/* Parameters values grid */}
+          {/* Parameters / results card */}
           {activeReport && (
             <Card className="p-5 bg-surface-card border border-white/5 space-y-3.5">
-              <span className="text-[10px] text-text-secondary font-bold uppercase tracking-widest block">Lab Result Panel Details</span>
-              <Table>
-                <Thead>
-                  <Tr>
-                    <Th className="text-[10px] py-2">Parameter</Th>
-                    <Th className="text-[10px] py-2 text-right">Value</Th>
-                    <Th className="text-[10px] py-2">Reference</Th>
-                    <Th className="text-[10px] py-2 text-center">Status</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {activeReport.results.map((res, i) => (
-                    <Tr key={i}>
-                      <td className="py-2 text-white font-bold text-xs">{res.parameter}</td>
-                      <td className="py-2 text-right font-mono text-xs text-white">{res.value} {res.unit}</td>
-                      <td className="py-2 font-mono text-[10px] text-text-secondary">{res.referenceRange} {res.unit}</td>
-                      <td className="py-2 text-center">
-                        <Badge variant={res.status === 'High' || res.status === 'Low' ? 'warning' : 'success'} className="text-[8px] py-0 px-1 font-bold">
-                          {res.status}
-                        </Badge>
-                      </td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
+              <span className="text-[10px] text-text-secondary font-bold uppercase tracking-widest block">Lab Result Details</span>
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between border-b border-white/5 py-2">
+                  <span className="text-text-secondary">Test Name:</span>
+                  <span className="text-white font-bold">{activeReport.test_name}</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 py-2">
+                  <span className="text-text-secondary">Test Date:</span>
+                  <span className="font-mono text-white">{activeReport.test_date}</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 py-2">
+                  <span className="text-text-secondary">Ordered By:</span>
+                  <span className="text-white">{activeReport.ordered_by}</span>
+                </div>
+                <div className="py-2">
+                  <span className="text-text-secondary block mb-1">Result:</span>
+                  <p className="text-white bg-black/20 p-2.5 rounded-lg border border-white/5">{activeReport.result || 'Pending'}</p>
+                </div>
+                {activeReport.notes && (
+                  <div className="py-2">
+                    <span className="text-text-secondary block mb-1">Notes:</span>
+                    <p className="text-white/70 italic text-[10px]">{activeReport.notes}</p>
+                  </div>
+                )}
+              </div>
             </Card>
           )}
         </div>

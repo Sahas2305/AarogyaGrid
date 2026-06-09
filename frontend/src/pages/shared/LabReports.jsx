@@ -4,9 +4,9 @@
  * Description: Shared lab reports directory detailing test files and order registers.
  * Used on: App.jsx (guarded route /labs)
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { ClipboardList, Search, Plus, Sparkles, ShieldAlert, Award, FileText, Check } from 'lucide-react';
+import { ClipboardList, Search, Plus, Sparkles, ShieldAlert } from 'lucide-react';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
 import { useAuth } from '../../hooks/useAuth';
 import { Card } from '../../components/ui/Card';
@@ -14,19 +14,19 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Drawer } from '../../components/ui/Drawer';
 import { Modal } from '../../components/ui/Modal';
-import { StatCard } from '../../components/ui/StatCard';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table';
-import { mockLabReports as initialLabReports } from '../../data/mockLabReports';
-import { mockPatients } from '../../data/mockPatients';
-import { mockDoctors } from '../../data/mockDoctors';
+import { getLabReports, getDoctors, getPatients, createLabReport } from '../../api/api';
 
 export const LabReports = () => {
   useRoleGuard(['admin', 'doctor', 'patient']);
   const { currentUser } = useAuth();
   const isAdminOrDoctor = currentUser?.role === 'admin' || currentUser?.role === 'doctor';
 
-  const [labList, setLabList] = useState(initialLabReports);
+  const [labList, setLabList] = useState([]);
+  const [patients, setPatients] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   
@@ -38,20 +38,32 @@ export const LabReports = () => {
 
   // Order lab form states
   const [wPatId, setWPatId] = useState('');
-  const [wDocId, setWDocId] = useState('D01');
+  const [wDocId, setWDocId] = useState('');
   const [wTestName, setWTestName] = useState('Complete Blood Count (CBC)');
 
-  // Role based filtering
-  const filteredLabs = labList.filter(lab => {
-    // If patient, only view Rahul Mehta (P01) reports
-    const matchesRole = isAdminOrDoctor || lab.patientId === 'P01';
-    
-    const matchesSearch = lab.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          lab.testName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          lab.reportId.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'All' || lab.status === statusFilter;
+  useEffect(() => {
+    Promise.all([getLabReports(), getPatients(), getDoctors()])
+      .then(([labs, pats, docs]) => {
+        setLabList(Array.isArray(labs) ? labs : []);
+        setPatients(Array.isArray(pats) ? pats : []);
+        const docList = Array.isArray(docs) ? docs : [];
+        setDoctors(docList);
+        if (docList.length > 0) setWDocId(String(docList[0].doctor_id));
+      })
+      .catch(() => toast.error('Failed to load lab data.'))
+      .finally(() => setLoading(false));
+  }, []);
 
+  // Role-based filtering using API fields
+  const filteredLabs = labList.filter(lab => {
+    const matchesRole = isAdminOrDoctor || lab.patient_id === currentUser?.linked_id;
+    const patientName = lab.patient?.name || '';
+    const matchesSearch = patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (lab.test_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          String(lab.test_id).includes(searchTerm);
+    const matchesStatus = statusFilter === 'All' ||
+      (statusFilter === 'Completed' && lab.result) ||
+      (statusFilter === 'Pending' && !lab.result);
     return matchesRole && matchesSearch && matchesStatus;
   });
 
@@ -59,41 +71,25 @@ export const LabReports = () => {
     setSelectedReport(report);
     setLoadingExplainer(true);
     setExplainerOpen(true);
-
-    setTimeout(() => {
-      setLoadingExplainer(false);
-    }, 1500);
+    setTimeout(() => setLoadingExplainer(false), 1500);
   };
 
-  const handleOrderLab = (e) => {
+  const handleOrderLab = async (e) => {
     e.preventDefault();
     if (!wPatId || !wTestName) {
       toast.error('Please complete all order fields.');
       return;
     }
-
-    const pat = mockPatients.find(p => p.patientId === wPatId);
-    const doc = mockDoctors.find(d => d.doctorId === wDocId);
-
-    const newLabOrder = {
-      reportId: `L${labList.length + 1 < 10 ? '0' + (labList.length + 1) : labList.length + 1}`,
-      patientId: wPatId,
-      patientName: pat?.name || 'Walk-In Patient',
-      doctorId: wDocId,
-      doctorName: doc?.name || 'Dr. Priya Sharma',
-      testName: wTestName,
-      date: new Date().toISOString().split('T')[0],
-      status: 'Pending',
-      results: [],
-      aiExplanation: null
-    };
-
-    setLabList([newLabOrder, ...labList]);
-    setDrawerOpen(false);
-    toast.success(`Lab Test ordered successfully for ${newLabOrder.patientName}`);
-
-    // Reset
-    setWPatId('');
+    try {
+      const result = await createLabReport({ patient_id: wPatId, doctor_id: wDocId, test_name: wTestName });
+      if (result.error) throw new Error(result.error);
+      setLabList(prev => [result, ...prev]);
+      setDrawerOpen(false);
+      toast.success('Lab test ordered successfully!');
+      setWPatId('');
+    } catch (err) {
+      toast.error('Failed to create lab order.');
+    }
   };
 
   return (
@@ -165,7 +161,9 @@ export const LabReports = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {filteredLabs.length === 0 ? (
+            {loading ? (
+              <Tr><Td colSpan={7} className="px-4 py-6"><SkeletonLoader rows={4} /></Td></Tr>
+            ) : filteredLabs.length === 0 ? (
               <Tr>
                 <Td colSpan={7} className="text-center py-10 text-text-secondary/50 text-xs">
                   No laboratory records registered in DB.
@@ -173,33 +171,34 @@ export const LabReports = () => {
               </Tr>
             ) : (
               filteredLabs.map((lab) => (
-                <Tr key={lab.reportId}>
-                  <Td className="font-mono text-xs font-bold text-white">{lab.reportId}</Td>
-                  <Td className="font-bold text-white text-xs">{lab.patientName}</Td>
-                  <Td className="text-xs font-semibold text-white">{lab.testName}</Td>
-                  <Td className="font-mono text-xs">{lab.date}</Td>
-                  <Td className="text-xs">{lab.doctorName}</Td>
+                <Tr key={lab.test_id}>
+                  <Td className="font-mono text-xs font-bold text-white">#{lab.test_id}</Td>
+                  <Td className="font-bold text-white text-xs">{lab.patient?.name || '—'}</Td>
+                  <Td className="text-xs font-semibold text-white">{lab.test_name}</Td>
+                  <Td className="font-mono text-xs">{lab.test_date}</Td>
+                  <Td className="text-xs">{lab.ordered_by}</Td>
                   <Td>
-                    <Badge variant={lab.status === 'Completed' ? 'success' : 'warning'}>{lab.status}</Badge>
+                    <Badge variant={lab.result ? 'success' : 'warning'}>
+                      {lab.result ? 'Completed' : 'Pending'}
+                    </Badge>
                   </Td>
                   <Td className="text-center">
                     <div className="flex items-center justify-center space-x-2">
                       <Button
                         variant="outline"
-                        disabled={lab.status === 'Pending'}
+                        disabled={!lab.result}
                         className="py-1 px-3 text-[10px]"
                         onClick={() => handleOpenExplainer(lab)}
                       >
                         View Results
                       </Button>
-                      
-                      {lab.status === 'Completed' && (
+                      {lab.result && (
                         <Button
                           onClick={() => handleOpenExplainer(lab)}
                           className="py-1 px-3 text-[10px] font-bold border border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan hover:bg-brand-cyan/20"
                         >
                           <Sparkles className="w-3.5 h-3.5 mr-1 text-brand-cyan" />
-                          <span>AI Explain</span>
+                          <span>View</span>
                         </Button>
                       )}
                     </div>
@@ -216,7 +215,7 @@ export const LabReports = () => {
         <Modal
           isOpen={explainerOpen}
           onClose={() => setExplainerOpen(false)}
-          title={`AI Diagnostics Explainer: ${selectedReport.testName}`}
+          title={`Lab Results: ${selectedReport?.test_name}`}
           size="lg"
         >
           {loadingExplainer ? (
@@ -227,63 +226,48 @@ export const LabReports = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 text-left select-none">
               
-              {/* Measurements details */}
+              {/* Lab result details */}
               <div className="md:col-span-6 space-y-4">
-                <span className="text-[10px] text-text-secondary uppercase tracking-widest font-extrabold block">Report Parameters</span>
-                <div className="p-4 bg-surface-secondary/40 border border-white/5 rounded-2xl space-y-3">
-                  {selectedReport.results.map((res, i) => (
-                    <div key={i} className="flex justify-between text-xs border-b border-white/5 pb-2 last:border-0 last:pb-0">
-                      <div>
-                        <span className="text-white font-bold block">{res.parameter}</span>
-                        <span className="text-[9px] text-text-secondary font-mono">Range: {res.referenceRange} {res.unit}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-white font-mono block">{res.value} {res.unit}</span>
-                        <Badge variant={res.status === 'High' || res.status === 'Low' ? 'warning' : 'success'} className="text-[8px] py-0 px-1 font-bold">
-                          {res.status}
-                        </Badge>
-                      </div>
+                <span className="text-[10px] text-text-secondary uppercase tracking-widest font-extrabold block">Report Details</span>
+                <div className="p-4 bg-surface-secondary/40 border border-white/5 rounded-2xl space-y-3 text-xs">
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-text-secondary">Test Name:</span>
+                    <span className="text-white font-bold">{selectedReport?.test_name}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-text-secondary">Test Date:</span>
+                    <span className="font-mono text-white">{selectedReport?.test_date}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-text-secondary">Ordered By:</span>
+                    <span className="text-white">{selectedReport?.ordered_by}</span>
+                  </div>
+                  <div className="pt-2">
+                    <span className="text-text-secondary block mb-1">Result:</span>
+                    <p className="text-white bg-black/20 p-2.5 rounded-lg border border-white/5">{selectedReport?.result || 'Pending'}</p>
+                  </div>
+                  {selectedReport?.notes && (
+                    <div className="pt-2">
+                      <span className="text-text-secondary block mb-1">Notes:</span>
+                      <p className="text-white/70 italic text-[10px]">{selectedReport.notes}</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
-              {/* Explanations summary */}
+              {/* AI Explanation placeholder */}
               <div className="md:col-span-6 space-y-4">
                 <div className="flex items-center space-x-2 border-b border-white/5 pb-2">
                   <Sparkles className="w-4 h-4 text-brand-cyan" />
                   <span className="text-[10px] text-brand-cyan uppercase tracking-widest font-bold">AI Clinical Translation</span>
                 </div>
-
-                <div className="space-y-3.5 text-xs">
-                  <p className="text-white font-medium leading-relaxed bg-brand-cyan/5 border border-brand-cyan/10 p-3 rounded-xl">
-                    {selectedReport.aiExplanation?.summary}
-                  </p>
-
-                  <div className="space-y-1.5">
-                    <span className="text-[9px] uppercase font-bold text-text-secondary tracking-widest block">Main Findings</span>
-                    <ul className="list-disc pl-4 text-text-secondary space-y-1">
-                      {selectedReport.aiExplanation?.findings.map((f, i) => (
-                        <li key={i}>{f}</li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <span className="text-[9px] uppercase font-bold text-text-secondary tracking-widest block">Suggested Actions</span>
-                    <ol className="list-decimal pl-4 text-text-secondary space-y-1">
-                      {selectedReport.aiExplanation?.actions.map((a, i) => (
-                        <li key={i}>{a}</li>
-                      ))}
-                    </ol>
-                  </div>
+                <div className="p-4 bg-brand-cyan/5 border border-brand-cyan/10 rounded-xl text-xs text-text-secondary leading-relaxed">
+                  <p>AI explanation is generated based on the result data. Powered by Gemini API — add your <code className="text-brand-cyan">GEMINI_API_KEY</code> in <code>.env</code> to enable full clinical explanations.</p>
                 </div>
-
                 <div className="flex items-center justify-between text-[8px] text-text-secondary/40 font-mono pt-3 border-t border-white/5">
                   <span>Powered by Gemini API</span>
                   <span>Safety Status: Verified</span>
                 </div>
-
               </div>
 
             </div>
@@ -309,9 +293,9 @@ export const LabReports = () => {
               required
             >
               <option value="">-- Choose Patient --</option>
-              {mockPatients.map(p => (
-                <option key={p.patientId} value={p.patientId}>
-                  {p.name} ({p.patientId})
+              {patients.map(p => (
+                <option key={p.patient_id} value={String(p.patient_id)}>
+                  {p.name} (#{p.patient_id})
                 </option>
               ))}
             </select>
@@ -340,8 +324,8 @@ export const LabReports = () => {
               onChange={(e) => setWDocId(e.target.value)}
               className="w-full bg-[#112255]/40 border border-white/10 rounded-lg px-3 py-2.5 text-xs text-white outline-none focus:border-brand-cyan/40 cursor-pointer"
             >
-              {mockDoctors.map(d => (
-                <option key={d.doctorId} value={d.doctorId}>
+              {doctors.map(d => (
+                <option key={d.doctor_id} value={String(d.doctor_id)}>
                   {d.name} ({d.specialization})
                 </option>
               ))}
