@@ -4,10 +4,10 @@
  * Description: Renders the patient dashboard view with accordions, lab tables, and invoices.
  * Used on: App.jsx (guarded route /patient/dashboard)
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { User, Calendar, FileText, ClipboardList, CreditCard, ChevronDown, ChevronUp, FileHeart, HelpCircle, Eye, ShieldAlert, Sparkles, Heart } from 'lucide-react';
+import { User, Calendar, FileText, ClipboardList, CreditCard, ChevronDown, ChevronUp, FileHeart, Eye, ShieldAlert, Sparkles, Heart } from 'lucide-react';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
 import { useAuth } from '../../hooks/useAuth';
 import { Card } from '../../components/ui/Card';
@@ -15,41 +15,44 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { StatCard } from '../../components/ui/StatCard';
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table';
-import { mockPatients } from '../../data/mockPatients';
-import { mockAppointments } from '../../data/mockAppointments';
-import { mockMedicalRecords } from '../../data/mockMedicalRecords';
-import { mockLabReports } from '../../data/mockLabReports';
-import { mockBilling } from '../../data/mockBilling';
+import { getAppointments, getMedicalRecords, getLabReports, getBilling } from '../../api/api';
 
 export const PatientDashboard = () => {
   useRoleGuard(['patient']);
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  // Accordion state
-  const [expandedRecord, setExpandedRecord] = useState(null);
-  
-  // Modal states
-  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [explainerOpen, setExplainerOpen] = useState(false);
-  const [selectedReport, setSelectedReport] = useState(null);
-  const [explaining, setExplaining] = useState(false);
+  const [appointments,  setAppointments]  = useState([]);
+  const [records,       setRecords]       = useState([]);
+  const [labs,          setLabs]          = useState([]);
+  const [bills,         setBills]         = useState([]);
+  const [loading,       setLoading]       = useState(true);
 
-  // Filter patient specific data (Rahul Mehta - P01)
-  const patientId = 'P01';
-  const appointments = mockAppointments.filter(app => app.patientId === patientId);
-  const records = mockMedicalRecords.filter(rec => rec.patientId === patientId);
-  const labs = mockLabReports.filter(lab => lab.patientId === patientId);
-  const bills = mockBilling.filter(bill => bill.patientId === patientId);
+  const [expandedRecord,    setExpandedRecord]    = useState(null);
+  const [invoiceModalOpen,  setInvoiceModalOpen]  = useState(false);
+  const [selectedInvoice,   setSelectedInvoice]   = useState(null);
+  const [explainerOpen,     setExplainerOpen]     = useState(false);
+  const [selectedReport,    setSelectedReport]    = useState(null);
+  const [explaining,        setExplaining]        = useState(false);
 
-  const upcomingAppts = appointments.filter(app => app.status === 'Scheduled').slice(0, 3);
-  const pastAppts = appointments.filter(app => app.status === 'Completed' || app.status === 'Cancelled').slice(0, 5);
+  useEffect(() => {
+    Promise.all([getAppointments(), getMedicalRecords(), getLabReports(), getBilling()])
+      .then(([appts, recs, labData, billData]) => {
+        setAppointments(Array.isArray(appts) ? appts : []);
+        setRecords(Array.isArray(recs) ? recs : []);
+        setLabs(Array.isArray(labData) ? labData : []);
+        setBills(Array.isArray(billData) ? billData : []);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
-  const toggleRecord = (id) => {
-    setExpandedRecord(prev => (prev === id ? null : id));
-  };
+  const upcomingAppts = appointments.filter(a => a.status === 'Scheduled' || a.status === 'Pending').slice(0, 3);
+  const pastAppts = appointments.filter(a => a.status === 'Completed' || a.status === 'Cancelled').slice(0, 5);
+
+  const toggleRecord = (id) => setExpandedRecord(prev => (prev === id ? null : id));
 
   const handleOpenInvoice = (invoice) => {
     setSelectedInvoice(invoice);
@@ -60,9 +63,7 @@ export const PatientDashboard = () => {
     setSelectedReport(report);
     setExplaining(true);
     setExplainerOpen(true);
-    setTimeout(() => {
-      setExplaining(false);
-    }, 1500);
+    setTimeout(() => setExplaining(false), 1500);
   };
 
   return (
@@ -104,22 +105,22 @@ export const PatientDashboard = () => {
             </div>
             
             <div className="grid grid-cols-1 gap-3.5">
-              {upcomingAppts.length === 0 ? (
+              {loading ? <SkeletonLoader rows={2} /> : upcomingAppts.length === 0 ? (
                 <Card className="p-4 text-center text-text-secondary/50 text-xs border border-white/5 bg-transparent">
                   No upcoming appointments.
                 </Card>
               ) : (
                 upcomingAppts.map((app) => (
-                  <Card key={app.appointmentId} className="p-4 bg-surface-card border border-white/5 flex items-center justify-between">
+                  <Card key={app.appointment_id} className="p-4 bg-surface-card border border-white/5 flex items-center justify-between">
                     <div>
-                      <h4 className="text-xs font-bold text-white">{app.doctorName}</h4>
-                      <p className="text-[10px] text-text-secondary mt-0.5">{app.department} Department</p>
+                      <h4 className="text-xs font-bold text-white">{app.doctor?.name || '—'}</h4>
+                      <p className="text-[10px] text-text-secondary mt-0.5">{app.department?.department_name} Department</p>
                       <span className="text-[10px] font-mono text-brand-cyan mt-1 block">
-                        {app.date} @ {app.timeSlot}
+                        {app.appointment_date} @ {app.appointment_time}
                       </span>
                     </div>
-                    <Badge variant={app.type === 'In-Person' ? 'cyan' : 'purple'} className="uppercase text-[9px] py-0 px-2 font-bold tracking-wider">
-                      {app.type}
+                    <Badge variant="cyan" className="uppercase text-[9px] py-0 px-2 font-bold tracking-wider">
+                      {app.status}
                     </Badge>
                   </Card>
                 ))
@@ -140,15 +141,15 @@ export const PatientDashboard = () => {
                 </Tr>
               </Thead>
               <Tbody>
-                {pastAppts.map((app) => (
-                  <Tr key={app.appointmentId}>
-                    <Td className="font-bold text-white text-xs">{app.doctorName}</Td>
-                    <Td className="text-xs font-mono">{app.date}</Td>
-                    <Td className="text-xs">{app.department}</Td>
+                {loading ? (
+                  <Tr><Td colSpan={4} className="px-4 py-4"><SkeletonLoader rows={3} /></Td></Tr>
+                ) : pastAppts.map((app) => (
+                  <Tr key={app.appointment_id}>
+                    <Td className="font-bold text-white text-xs">{app.doctor?.name || '—'}</Td>
+                    <Td className="text-xs font-mono">{app.appointment_date}</Td>
+                    <Td className="text-xs">{app.department?.department_name}</Td>
                     <Td>
-                      <Badge variant={app.status === 'Completed' ? 'success' : 'danger'}>
-                        {app.status}
-                      </Badge>
+                      <Badge variant={app.status === 'Completed' ? 'success' : 'danger'}>{app.status}</Badge>
                     </Td>
                   </Tr>
                 ))}
@@ -165,51 +166,30 @@ export const PatientDashboard = () => {
           <div className="space-y-3">
             <h3 className="text-xs uppercase font-extrabold tracking-widest text-text-secondary">Clinical Medical File</h3>
             <div className="space-y-3">
-              {records.map((rec) => {
-                const isOpen = expandedRecord === rec.recordId;
+              {loading ? <SkeletonLoader rows={2} /> : records.map((rec) => {
+                const isOpen = expandedRecord === rec.record_id;
                 return (
-                  <Card
-                    key={rec.recordId}
-                    className={`p-0 border overflow-hidden transition-all ${
-                      isOpen ? 'border-brand-cyan/20' : 'border-white/5'
-                    }`}
-                  >
-                    {/* Header bar click toggle */}
-                    <div
-                      onClick={() => toggleRecord(rec.recordId)}
+                  <Card key={rec.record_id} className={`p-0 border overflow-hidden transition-all ${isOpen ? 'border-brand-cyan/20' : 'border-white/5'}`}>
+                    <div onClick={() => toggleRecord(rec.record_id)}
                       className="p-4 bg-surface-secondary/40 flex items-center justify-between cursor-pointer"
                     >
                       <div className="truncate pr-2">
                         <span className="text-xs font-bold text-white truncate block">{rec.diagnosis}</span>
-                        <span className="text-[10px] text-text-secondary/60 mt-0.5">{rec.date} • {rec.doctorName}</span>
+                        <span className="text-[10px] text-text-secondary/60 mt-0.5">{rec.record_date} • {rec.doctor?.name}</span>
                       </div>
                       <div className="text-text-secondary">
                         {isOpen ? <ChevronUp className="w-4 h-4 text-brand-cyan" /> : <ChevronDown className="w-4 h-4" />}
                       </div>
                     </div>
-
-                    {/* Expandable Vitals and Notes */}
                     {isOpen && (
-                      <div className="p-4 space-y-4 border-t border-white/5 bg-[#0d2044]/30">
-                        {/* Vitals metrics */}
-                        <div className="grid grid-cols-4 gap-2">
-                          <StatCard small title="BP (mmHg)" value={rec.vitals.bp} icon={Heart} />
-                          <StatCard small title="HR (bpm)" value={rec.vitals.hr} icon={Heart} />
-                          <StatCard small title="Temp (°F)" value={rec.vitals.temp} icon={Heart} />
-                          <StatCard small title="SpO2 (%)" value={rec.vitals.spo2} icon={Heart} />
+                      <div className="p-4 space-y-3 border-t border-white/5 bg-[#0d2044]/30 text-xs">
+                        <div>
+                          <span className="text-[9px] uppercase font-bold text-brand-cyan tracking-widest block">Prescription</span>
+                          <p className="text-white font-mono bg-black/20 p-2.5 rounded-lg border border-white/5 mt-1">{rec.prescription}</p>
                         </div>
-                        
-                        <div className="text-xs space-y-2">
-                          <div>
-                            <span className="text-[9px] uppercase font-bold text-brand-cyan tracking-widest block">Recommended Treatment</span>
-                            <p className="text-text-secondary mt-1 font-medium">{rec.treatment}</p>
-                          </div>
-                          <div>
-                            <span className="text-[9px] uppercase font-bold text-brand-cyan tracking-widest block">Prescriptions</span>
-                            <p className="text-white font-mono bg-black/20 p-2.5 rounded-lg border border-white/5 whitespace-pre-line mt-1">
-                              {rec.prescription}
-                            </p>
-                          </div>
+                        <div>
+                          <span className="text-[9px] uppercase font-bold text-brand-cyan tracking-widest block">Notes</span>
+                          <p className="text-text-secondary mt-1">{rec.notes || 'None'}</p>
                         </div>
                       </div>
                     )}
@@ -224,18 +204,16 @@ export const PatientDashboard = () => {
             <h3 className="text-xs uppercase font-extrabold tracking-widest text-text-secondary">Diagnostic Lab Panels</h3>
             <Card className="p-0 border border-white/5">
               <div className="divide-y divide-white/5">
-                {labs.map((lab) => (
-                  <div key={lab.reportId} className="p-4 flex items-center justify-between gap-4 hover:bg-white/[0.01]">
+                {loading ? <div className="p-4"><SkeletonLoader rows={3} /></div> : labs.map((lab) => (
+                  <div key={lab.test_id} className="p-4 flex items-center justify-between gap-4 hover:bg-white/[0.01]">
                     <div>
-                      <h4 className="text-xs font-bold text-white">{lab.testName}</h4>
-                      <span className="text-[10px] text-text-secondary font-mono">{lab.date} • {lab.doctorName}</span>
+                      <h4 className="text-xs font-bold text-white">{lab.test_name}</h4>
+                      <span className="text-[10px] text-text-secondary font-mono">{lab.test_date} • {lab.ordered_by}</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <Badge variant={lab.status === 'Completed' ? 'success' : 'warning'}>{lab.status}</Badge>
-                      {lab.status === 'Completed' && (
-                        <Button
-                          variant="outline"
-                          className="py-1 px-2.5 text-[9px] border-brand-cyan/20 text-brand-cyan hover:bg-brand-cyan/10"
+                      <Badge variant={lab.result ? 'success' : 'warning'}>{lab.result ? 'Completed' : 'Pending'}</Badge>
+                      {lab.result && (
+                        <Button variant="outline" className="py-1 px-2.5 text-[9px] border-brand-cyan/20 text-brand-cyan hover:bg-brand-cyan/10"
                           onClick={() => handleExplainWithAi(lab)}
                         >
                           AI Explain
@@ -268,20 +246,22 @@ export const PatientDashboard = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {bills.map((bill) => (
-              <Tr key={bill.billId}>
-                <Td className="font-mono text-xs font-bold text-white">{bill.billId}</Td>
-                <Td className="text-xs font-mono">{bill.date}</Td>
-                <Td className="text-xs text-white">₹{bill.totalAmount.toLocaleString('en-IN')}</Td>
-                <Td className="text-xs text-text-secondary">₹{bill.insuranceClaimed.toLocaleString('en-IN')}</Td>
-                <Td className="text-xs text-brand-cyan font-bold">₹{bill.paidAmount.toLocaleString('en-IN')}</Td>
+            {loading ? (
+              <Tr><Td colSpan={7} className="px-4 py-4"><SkeletonLoader rows={3} /></Td></Tr>
+            ) : bills.map((bill) => (
+              <Tr key={bill.billing_id}>
+                <Td className="font-mono text-xs font-bold text-white">B{String(bill.billing_id).padStart(3,'0')}</Td>
+                <Td className="text-xs font-mono">{bill.payment_date || '—'}</Td>
+                <Td className="text-xs text-white">₹{Number(bill.amount).toLocaleString('en-IN')}</Td>
+                <Td className="text-xs text-text-secondary">—</Td>
+                <Td className="text-xs text-brand-cyan font-bold">₹{Number(bill.amount).toLocaleString('en-IN')}</Td>
                 <Td>
-                  <Badge variant={bill.status === 'Paid' ? 'success' : 'danger'}>{bill.status}</Badge>
+                  <Badge variant={bill.payment_method ? 'success' : 'danger'}>
+                    {bill.payment_method ? 'Paid' : 'Pending'}
+                  </Badge>
                 </Td>
                 <Td className="text-center">
-                  <Button
-                    variant="outline"
-                    className="py-1 px-2.5 text-[9px]"
+                  <Button variant="outline" className="py-1 px-2.5 text-[9px]"
                     onClick={() => handleOpenInvoice(bill)}
                   >
                     View Invoice

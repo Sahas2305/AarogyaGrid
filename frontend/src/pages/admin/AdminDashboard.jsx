@@ -3,8 +3,13 @@
  * Props: None
  * Description: Main dashboard view for administrative users.
  * Used on: App.jsx (guarded route /admin/dashboard)
+ *
+ * CHANGES FROM MOCK VERSION:
+ * - currentUser?.name → currentUser?.username (matches AuthContext field)
+ * - All data fetched from real API (getAuditLogs, getDoctors, getPatients, getAppointments)
+ * - Field names use snake_case to match Supabase/Flask responses
  */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, UserCheck, Calendar, CreditCard, Activity, ShieldAlert, Database } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
@@ -12,19 +17,19 @@ import { Card } from '../../components/ui/Card';
 import { StatCard } from '../../components/ui/StatCard';
 import { Badge } from '../../components/ui/Badge';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table';
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { CustomAreaChart } from '../../components/charts/AreaChart';
 import { CustomBarChart } from '../../components/charts/BarChart';
 import { SparkLine } from '../../components/charts/SparkLine';
-import { mockDoctors } from '../../data/mockDoctors';
-import { mockAuditLogs } from '../../data/mockAuditLogs';
+import { getAuditLogs, getDoctors, getPatients, getAppointments } from '../../api/api';
 
-// Mock Sparkline data series
-const sparkPatients = [1000, 1050, 1100, 1150, 1200, 1240, 1284];
-const sparkDoctors = [40, 42, 42, 45, 45, 46, 48];
+// Sparkline trend data — visual only, not from DB
+const sparkPatients     = [1000, 1050, 1100, 1150, 1200, 1240, 1284];
+const sparkDoctors      = [40, 42, 42, 45, 45, 46, 48];
 const sparkAppointments = [150, 140, 160, 130, 145, 135, 127];
-const sparkBills = [28, 30, 32, 29, 35, 31, 34];
+const sparkBills        = [28, 30, 32, 29, 35, 31, 34];
 
-// Mock monthly appointments Area chart data
+// Chart data — visual only, not from DB
 const appointmentsChartData = [
   { date: '05-10', appointments: 90 },
   { date: '05-15', appointments: 110 },
@@ -32,34 +37,44 @@ const appointmentsChartData = [
   { date: '05-25', appointments: 120 },
   { date: '05-30', appointments: 130 },
   { date: '06-05', appointments: 115 },
-  { date: '06-09', appointments: 127 }
+  { date: '06-09', appointments: 127 },
 ];
 
-// Mock departments workload horizontal Bar chart data
 const departmentBarData = [
-  { department: 'Cardiology', doctors: 5 },
-  { department: 'Neurology', doctors: 4 },
-  { department: 'Orthopedics', doctors: 6 },
-  { department: 'Pediatrics', doctors: 3 },
-  { department: 'General', doctors: 8 },
-  { department: 'Emergency', doctors: 7 }
+  { department: 'Cardiology',   doctors: 5 },
+  { department: 'Neurology',    doctors: 4 },
+  { department: 'Orthopedics',  doctors: 6 },
+  { department: 'Pediatrics',   doctors: 3 },
+  { department: 'General',      doctors: 8 },
+  { department: 'Emergency',    doctors: 7 },
 ];
 
 export const AdminDashboard = () => {
   useRoleGuard(['admin']);
   const { currentUser } = useAuth();
 
-  // Get last 10 audit logs
-  const recentAudits = mockAuditLogs.slice(0, 10);
+  const [auditLogs,    setAuditLogs]    = useState([]);
+  const [doctors,      setDoctors]      = useState([]);
+  const [patients,     setPatients]     = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [loading,      setLoading]      = useState(true);
 
-  // Status Badge Helper for Doctors
-  const getDocStatusVariant = (status) => {
-    if (status === 'Available') return 'success';
-    if (status === 'In Consultation') return 'warning';
-    return 'danger';
-  };
+  useEffect(() => {
+    Promise.all([getAuditLogs(), getDoctors(), getPatients(), getAppointments()])
+      .then(([logs, docs, pats, appts]) => {
+        setAuditLogs(Array.isArray(logs) ? logs : []);
+        setDoctors(Array.isArray(docs) ? docs : []);
+        setPatients(Array.isArray(pats) ? pats : []);
+        setAppointments(Array.isArray(appts) ? appts : []);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
-  // Badge helper for Audit Actions
+  const recentAudits = auditLogs.slice(0, 10);
+  const todayStr     = new Date().toISOString().split('T')[0];
+  const todayAppts   = appointments.filter(a => a.appointment_date === todayStr).length;
+
   const getActionBadgeVariant = (action) => {
     if (action === 'INSERT') return 'cyan';
     if (action === 'UPDATE') return 'warning';
@@ -68,12 +83,14 @@ export const AdminDashboard = () => {
 
   return (
     <div className="space-y-6 select-none">
+
       {/* Welcome Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-5 border-b border-white/5">
         <div>
           <h2 className="text-xl md:text-2xl font-extrabold text-white">System Controller Dashboard</h2>
+          {/* FIX: was currentUser?.name — AuthContext stores username, not name */}
           <p className="text-xs md:text-sm text-text-secondary mt-1">
-            Logged in as <span className="text-brand-cyan font-bold">{currentUser?.name}</span> (Database Overseer)
+            Logged in as <span className="text-brand-cyan font-bold">{currentUser?.username}</span> (Database Overseer)
           </p>
         </div>
         <div className="mt-4 md:mt-0 flex items-center space-x-2">
@@ -88,34 +105,34 @@ export const AdminDashboard = () => {
       {/* Top Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
-          title="Total Patients Schema"
-          value={1284}
+          title="Total Patients"
+          value={loading ? '—' : patients.length}
           icon={Users}
-          trend="+12% weekly"
+          trend="Live from DB"
           trendType="success"
           chart={<SparkLine data={sparkPatients} stroke="#00c853" />}
         />
         <StatCard
           title="Practitioning Doctors"
-          value={48}
+          value={loading ? '—' : doctors.length}
           icon={UserCheck}
-          trend="+3% monthly"
+          trend="Live from DB"
           trendType="success"
           chart={<SparkLine data={sparkDoctors} stroke="#00d4ff" />}
         />
         <StatCard
           title="Today's Appointments"
-          value={127}
+          value={loading ? '—' : todayAppts}
           icon={Calendar}
-          trend="-5% load"
-          trendType="danger"
+          trend="Filtered by today"
+          trendType={todayAppts > 0 ? 'success' : 'danger'}
           chart={<SparkLine data={sparkAppointments} stroke="#ff1744" />}
         />
         <StatCard
-          title="Pending Invoices (INR)"
-          value={34}
+          title="Total Appointments"
+          value={loading ? '—' : appointments.length}
           icon={CreditCard}
-          trend="+8% billing"
+          trend="All time"
           trendType="warning"
           chart={<SparkLine data={sparkBills} stroke="#ffab00" />}
         />
@@ -140,9 +157,9 @@ export const AdminDashboard = () => {
         </Card>
       </div>
 
-      {/* Audit, Roster, and health Row */}
+      {/* Audit, Roster, and Health Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         {/* Compact Audit Log Table */}
         <div className="lg:col-span-6 space-y-3">
           <div className="flex items-center justify-between">
@@ -159,18 +176,25 @@ export const AdminDashboard = () => {
               </Tr>
             </Thead>
             <Tbody>
-              {recentAudits.map((log) => (
+              {loading ? (
+                <Tr><Td colSpan={4} className="px-4 py-6"><SkeletonLoader rows={4} /></Td></Tr>
+              ) : recentAudits.length === 0 ? (
+                <Tr><Td colSpan={4} className="text-center py-8 text-text-secondary/50 text-xs">No audit logs yet</Td></Tr>
+              ) : recentAudits.map((log) => (
                 <Tr
-                  key={log.auditId}
+                  key={log.audit_id}
                   className={log.action === 'DELETE' ? 'border-l-2 border-brand-danger bg-brand-danger/5' : ''}
                 >
-                  <Td className="text-xs font-mono px-4 py-2.5 text-white">{log.tableAffected}</Td>
+                  {/* API field: table_affected (was tableAffected in mock) */}
+                  <Td className="text-xs font-mono px-4 py-2.5 text-white">{log.table_affected}</Td>
                   <Td className="px-4 py-2.5">
                     <Badge variant={getActionBadgeVariant(log.action)} className="text-[9px] py-0 px-1.5">{log.action}</Badge>
                   </Td>
-                  <Td className="text-xs px-4 py-2.5">{log.userName}</Td>
+                  {/* API field: user_id (AUDIT_LOG table has no username — show user_id or 'System') */}
+                  <Td className="text-xs px-4 py-2.5">{log.user_id || 'System'}</Td>
+                  {/* API field: action_time (was actionTime in mock) */}
                   <Td className="text-xs font-mono text-text-secondary/70 px-4 py-2.5">
-                    {log.actionTime.split(' ')[1]}
+                    {log.action_time ? new Date(log.action_time).toLocaleTimeString() : '—'}
                   </Td>
                 </Tr>
               ))}
@@ -182,14 +206,17 @@ export const AdminDashboard = () => {
         <div className="lg:col-span-3 space-y-3">
           <h3 className="text-xs uppercase font-extrabold tracking-widest text-text-secondary">Clinician Roster Status</h3>
           <Card className="p-4 space-y-3 max-h-[360px] overflow-y-auto bg-surface-card border border-white/5">
-            {mockDoctors.slice(0, 8).map((doc) => (
-              <div key={doc.doctorId} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
+            {loading ? <SkeletonLoader rows={5} /> : doctors.slice(0, 8).map((doc) => (
+              <div key={doc.doctor_id} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
                 <div className="truncate pr-2">
                   <h4 className="text-xs font-bold text-white truncate">{doc.name}</h4>
-                  <p className="text-[10px] text-text-secondary truncate mt-0.5">{doc.department} dept</p>
+                  {/* API field: department is a joined object with department_name */}
+                  <p className="text-[10px] text-text-secondary truncate mt-0.5">
+                    {doc.department?.department_name || 'General'}
+                  </p>
                 </div>
-                <Badge variant={getDocStatusVariant(doc.status)} className="text-[8px] py-0 px-1.5 font-bold uppercase tracking-wider flex-shrink-0">
-                  {doc.status}
+                <Badge variant="success" className="text-[8px] py-0 px-1.5 font-bold uppercase tracking-wider flex-shrink-0">
+                  Active
                 </Badge>
               </div>
             ))}
@@ -200,18 +227,13 @@ export const AdminDashboard = () => {
         <div className="lg:col-span-3 space-y-3">
           <h3 className="text-xs uppercase font-extrabold tracking-widest text-text-secondary">Database System Health</h3>
           <Card className="p-5 flex flex-col justify-between items-center text-center h-[360px] relative overflow-hidden bg-surface-card border border-white/5">
-            
-            {/* Storage Progress Ring */}
+
             <div className="relative flex items-center justify-center mt-3">
               <svg className="w-28 h-28 transform -rotate-90">
                 <circle cx="56" cy="56" r="46" stroke="rgba(255,255,255,0.05)" strokeWidth="8" fill="transparent" />
                 <circle
-                  cx="56"
-                  cy="56"
-                  r="46"
-                  stroke="#00d4ff"
-                  strokeWidth="8"
-                  fill="transparent"
+                  cx="56" cy="56" r="46"
+                  stroke="#00d4ff" strokeWidth="8" fill="transparent"
                   strokeDasharray={2 * Math.PI * 46}
                   strokeDashoffset={2 * Math.PI * 46 * (1 - 0.67)}
                   strokeLinecap="round"

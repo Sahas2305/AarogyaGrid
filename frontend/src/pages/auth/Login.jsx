@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { Eye, EyeOff, Shield, Stethoscope, Users, Heart, ClipboardPlus } from 'lucide-react';
+import { Eye, EyeOff, Shield, Stethoscope, Users, Heart } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { EcgLine } from '../../components/ui/EcgLine';
 import { Card } from '../../components/ui/Card';
@@ -49,7 +49,7 @@ const FloatingInput = ({ label, id, type = 'text', value, onChange, error, ...pr
 
 export const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginWithCredentials, registerNewPatient } = useAuth();
   
   const [activeTab, setActiveTab] = useState('login'); // login or register
   const [showPassword, setShowPassword] = useState(false);
@@ -70,7 +70,7 @@ export const Login = () => {
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     if (!loginEmail || !loginPassword) {
       toast.error('Please fill in all credentials.');
@@ -78,49 +78,64 @@ export const Login = () => {
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const user = await loginWithCredentials(loginEmail.trim().toLowerCase(), loginPassword);
+      toast.success(`Welcome back, ${user.username}!`);
+      if (user.role === 'admin')   navigate('/admin/dashboard');
+      else if (user.role === 'doctor')  navigate('/doctor/dashboard');
+      else if (user.role === 'patient') navigate('/patient/dashboard');
+    } catch (err) {
+      toast.error(err.message || 'Login failed. Check your credentials.');
+    } finally {
       setLoading(false);
-      
-      // Determine role by email for demo login
-      let matchedRole = 'admin';
-      if (loginEmail.includes('priya') || loginEmail.includes('doctor')) {
-        matchedRole = 'doctor';
-      } else if (loginEmail.includes('rahul') || loginEmail.includes('patient')) {
-        matchedRole = 'patient';
-      }
-      
-      login(matchedRole);
-      toast.success(`Welcome back! Logged in as ${matchedRole.toUpperCase()}`);
-      
-      // Redirect
-      if (matchedRole === 'admin') navigate('/admin/dashboard');
-      else if (matchedRole === 'doctor') navigate('/doctor/dashboard');
-      else if (matchedRole === 'patient') navigate('/patient/dashboard');
-    }, 1500);
+    }
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     if (regPassword !== regConfirmPassword) {
       toast.error('Passwords do not match.');
       return;
     }
+    if (regPassword.length < 6) {
+      toast.error('Password must be at least 6 characters.');
+      return;
+    }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      login('patient'); // Logs in as default patient Rahul Mehta
-      toast.success('Registration successful! Welcome to HealthcareOS.');
+    try {
+      const user = await registerNewPatient({
+        username:           regName.trim(),
+        email:              regEmail.trim().toLowerCase(),
+        password:           regPassword,
+        gender:             regGender,
+        dob:                regDob,
+        phone:              regPhone.trim(),
+        address:            regAddress.trim(),
+        insurance_details:  regInsurance.trim(),
+      });
+      toast.success('Account created! Welcome to HealthcareOS.');
       navigate('/patient/dashboard');
-    }, 1500);
+    } catch (err) {
+      toast.error(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleQuickLogin = (role) => {
-    login(role);
-    toast.success(`Demo Access: logged in as ${role.toUpperCase()}`);
-    if (role === 'admin') navigate('/admin/dashboard');
-    else if (role === 'doctor') navigate('/doctor/dashboard');
-    else if (role === 'patient') navigate('/patient/dashboard');
+  const handleQuickLogin = async (role) => {
+    setLoading(true);
+    try {
+      const user = await login(role);  // switchRole calls real API with demo creds
+      toast.success(`Demo Access: ${role.toUpperCase()} portal`);
+      if (role === 'admin')   navigate('/admin/dashboard');
+      else if (role === 'doctor')  navigate('/doctor/dashboard');
+      else if (role === 'patient') navigate('/patient/dashboard');
+    } catch (err) {
+      toast.error('Demo login failed — is the backend running?');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
