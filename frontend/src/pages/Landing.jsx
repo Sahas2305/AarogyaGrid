@@ -80,8 +80,9 @@ export const Landing = () => {
       <div className="max-w-7xl mx-auto px-6 pt-32 pb-16 flex-1 flex flex-col justify-center items-center text-center relative z-20">
         
         {/* Project Header badge */}
-        <div className="inline-flex items-center space-x-2 px-3.5 py-1 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-brand-cyan uppercase tracking-widest mb-6">
-          <span>DBMS Final Year Project</span>
+        <div className="inline-flex items-center space-x-2 px-3.5 py-1 bg-brand-cyan/10 border border-brand-cyan/25 rounded-full text-xs font-bold text-brand-cyan uppercase tracking-widest mb-6">
+          <span className="w-1.5 h-1.5 bg-brand-cyan rounded-full animate-pulse"></span>
+          <span>Now Live &mdash; Trusted by Hospitals Across India</span>
         </div>
 
         {/* Hero Title */}
@@ -102,13 +103,13 @@ export const Landing = () => {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8 w-full sm:w-auto">
           <Link to="/login">
             <Button variant="primary" className="px-8 py-3 text-base flex items-center space-x-2 w-full sm:w-auto">
-              <span>Access Demo Portal</span>
+              <span>Get Started Free</span>
               <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>
           <Link to="/login">
             <Button variant="outline" className="px-8 py-3 text-base w-full sm:w-auto">
-              <span>Sign In</span>
+              <span>Staff Login</span>
             </Button>
           </Link>
         </div>
@@ -187,15 +188,15 @@ export const Landing = () => {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between text-center md:text-left gap-4">
           <div>
             <p className="text-xs text-text-secondary font-semibold">
-              HealthcareOS — Healthcare Excellence Platform
+              HealthcareOS &mdash; Intelligent Hospital Management Platform
             </p>
             <p className="text-[10px] text-text-secondary/50 mt-1 max-w-md leading-relaxed">
-              Developed by Darshan Gupta, Devansh Pateriya, Keshav Lath, and Sahastranshu Mishra. 
-              Department of CSE Cyber Security, Dayananda Sagar College of Engineering, Bangalore.
+              Secure, AI-powered clinical operations software. Compliant with healthcare data standards.
+              Serving patients and clinicians across India.
             </p>
           </div>
           <div className="text-[10px] text-text-secondary/50 font-mono">
-            DBMS Final Project © 2026
+            HealthcareOS &copy; 2026 &mdash; All rights reserved.
           </div>
         </div>
       </footer>

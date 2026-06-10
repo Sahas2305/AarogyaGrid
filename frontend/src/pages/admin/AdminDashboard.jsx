@@ -77,7 +77,8 @@ export const AdminDashboard = () => {
 
   const recentAudits = auditLogs.slice(0, 10);
   const todayStr     = new Date().toISOString().split('T')[0];
-  const todayAppts   = appointments.filter(a => a.appointment_date === todayStr).length;
+  // getAppointments() normalizes appointment_date → date, so check both
+  const todayAppts   = appointments.filter(a => (a.date || a.appointment_date) === todayStr).length;
 
   const getActionBadgeVariant = (action) => {
     if (action === 'INSERT') return 'cyan';
