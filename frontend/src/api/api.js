@@ -55,6 +55,30 @@ export const registerPatient = async (data) => {
   return json;
 };
 
+/** POST /api/auth/send-otp — returns { success, message, otp, phone } */
+export const sendMobileOtp = async (phone) => {
+  const res = await fetch(`${BASE_URL}/api/auth/send-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `Failed to send OTP (${res.status})`);
+  return json;
+};
+
+/** POST /api/auth/verify-otp — returns { success, message, phone } */
+export const verifyMobileOtp = async (phone, otp) => {
+  const res = await fetch(`${BASE_URL}/api/auth/verify-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, otp }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `OTP verification failed (${res.status})`);
+  return json;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PATIENTS
 // ─────────────────────────────────────────────────────────────────────────────

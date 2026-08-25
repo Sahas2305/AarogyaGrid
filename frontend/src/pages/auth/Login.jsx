@@ -4,18 +4,18 @@
  * Description: Contains Login and Register forms with floating labels and demo access cards.
  * Used on: App.jsx (public route /login)
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { Eye, EyeOff, Shield, Stethoscope, Users, Heart, CheckCircle2, XCircle, MapPin, Navigation, Star, Bed, Building2 } from 'lucide-react';
+import { Eye, EyeOff, Shield, Stethoscope, Users, Heart, CheckCircle2, XCircle, MapPin, Navigation, Star, Bed, Building2, KeyRound, Smartphone, Send, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useHospital } from '../../context/HospitalContext';
 import { HospitalSelectorModal } from '../../components/ui/HospitalSelectorModal';
 import { EcgLine } from '../../components/ui/EcgLine';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-
+import { sendMobileOtp, verifyMobileOtp } from '../../api/api';
 import { isValidMobile, normalizeMobile } from '../../utils/validators';
 
 // ── Validation helpers ────────────────────────────────────────────────────────
@@ -140,6 +140,68 @@ export const Login = () => {
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
 
+  // Mobile OTP States
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [enteredOtp, setEnteredOtp] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // OTP Resend Cooldown Countdown
+  useEffect(() => {
+    let timer;
+    if (resendCooldown > 0) {
+      timer = setInterval(() => {
+        setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  const handleSendOtp = async () => {
+    const cleanPhone = normalizeMobile(regPhone);
+    if (!isValidMobile(cleanPhone)) {
+      toast.error('Please enter a valid 10-digit mobile number before sending OTP.');
+      return;
+    }
+    setOtpSending(true);
+    try {
+      const res = await sendMobileOtp(cleanPhone);
+      setOtpSent(true);
+      setOtpVerified(false);
+      setResendCooldown(60);
+      toast.success(
+        res.otp 
+          ? `📲 OTP Sent! Verification Code: ${res.otp}` 
+          : res.message || 'OTP sent to your mobile.',
+        { duration: 9000, icon: '📱' }
+      );
+    } catch (err) {
+      toast.error(err.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const cleanPhone = normalizeMobile(regPhone);
+    if (!enteredOtp || enteredOtp.trim().length !== 6) {
+      toast.error('Please enter the 6-digit OTP.');
+      return;
+    }
+    setOtpVerifying(true);
+    try {
+      await verifyMobileOtp(cleanPhone, enteredOtp.trim());
+      setOtpVerified(true);
+      toast.success('Mobile number verified successfully! ✓');
+    } catch (err) {
+      toast.error(err.message || 'Invalid or expired OTP.');
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     if (!loginEmail || !loginPassword) {
@@ -168,6 +230,12 @@ export const Login = () => {
     const cleanPhone = normalizeMobile(regPhone);
     if (!isValidMobile(cleanPhone)) {
       toast.error('Please enter a valid 10-digit mobile number (starts with 6-9).');
+      return;
+    }
+
+    // OTP verification check
+    if (!otpVerified) {
+      toast.error('Please verify your mobile number with OTP before registering.');
       return;
     }
 
@@ -374,28 +442,84 @@ export const Login = () => {
                   </select>
                 </div>
 
-                {/* Phone Number with live validation hint */}
-                <div>
-                  <FloatingInput
-                    label="Phone Number (10 digits)"
-                    id="regPhone"
-                    type="tel"
-                    maxLength={13}
-                    value={regPhone}
-                    onChange={(e) => setRegPhone(e.target.value)}
-                    required
-                  />
+                {/* Phone Number with OTP verification */}
+                <div className="space-y-2 mb-2">
+                  <div className="relative">
+                    <FloatingInput
+                      label="Mobile Number (10 digits)"
+                      id="regPhone"
+                      type="tel"
+                      maxLength={13}
+                      value={regPhone}
+                      onChange={(e) => {
+                        setRegPhone(e.target.value);
+                        if (otpVerified) setOtpVerified(false);
+                        if (otpSent) setOtpSent(false);
+                      }}
+                      required
+                    />
+                    {/* Send OTP button / Verified Badge inside input */}
+                    <div className="absolute right-2 top-2 z-10">
+                      {otpVerified ? (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 rounded-lg shadow-sm">
+                          <ShieldCheck className="w-3.5 h-3.5" /> Verified
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={otpSending || !isValidMobile(normalizeMobile(regPhone)) || resendCooldown > 0}
+                          className="flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-lg bg-brand-cyan/20 hover:bg-brand-cyan/30 text-brand-cyan border border-brand-cyan/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        >
+                          <Smartphone className="w-3 h-3" />
+                          {otpSending ? 'Sending...' : resendCooldown > 0 ? `Resend (${resendCooldown}s)` : (otpSent ? 'Resend OTP' : 'Send OTP')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Validation feedback */}
                   {regPhone && !isValidMobile(regPhone) && (
-                    <p className="text-[10px] text-red-400 -mt-3 mb-3 px-1 flex items-center gap-1">
+                    <p className="text-[10px] text-red-400 -mt-3 mb-2 px-1 flex items-center gap-1">
                       <XCircle className="w-3 h-3 shrink-0" />
                       Enter a valid 10-digit mobile number (starts with 6–9)
                     </p>
                   )}
-                  {regPhone && isValidMobile(regPhone) && (
-                    <p className="text-[10px] text-green-400 -mt-3 mb-3 px-1 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 shrink-0" />
-                      Valid mobile number
-                    </p>
+
+                  {/* 6-Digit OTP verification block */}
+                  {otpSent && !otpVerified && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-3 bg-brand-cyan/10 border border-brand-cyan/30 rounded-xl space-y-2 mb-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-brand-cyan flex items-center gap-1.5">
+                          <KeyRound className="w-3.5 h-3.5" /> Enter 6-Digit OTP
+                        </label>
+                        <span className="text-[10px] text-slate-400">
+                          {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Code expires in 5 mins'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          maxLength={6}
+                          placeholder="• • • • • •"
+                          value={enteredOtp}
+                          onChange={(e) => setEnteredOtp(e.target.value.replace(/\D/g, ''))}
+                          className="flex-1 px-3 py-1.5 text-center font-mono tracking-widest text-sm bg-[#0a1628] border border-brand-cyan/40 rounded-lg text-white outline-none focus:border-brand-cyan shadow-inner"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyOtp}
+                          disabled={otpVerifying || enteredOtp.length !== 6}
+                          className="px-4 py-1.5 bg-gradient-to-r from-brand-cyan to-brand-blue text-white text-xs font-bold rounded-lg hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md"
+                        >
+                          {otpVerifying ? 'Verifying...' : 'Verify OTP'}
+                        </button>
+                      </div>
+                    </motion.div>
                   )}
                 </div>
 
