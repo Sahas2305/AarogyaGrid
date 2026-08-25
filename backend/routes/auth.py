@@ -9,7 +9,6 @@ Endpoints:
 
 import os
 import re
-import random
 import jwt
 import bcrypt
 from datetime import datetime, timezone, timedelta
@@ -17,9 +16,6 @@ from flask import Blueprint, request, jsonify
 from config import supabase, JWT_SECRET
 
 auth_bp = Blueprint('auth', __name__)
-
-# ── In-memory OTP Storage (phone -> { otp, expires_at, verified }) ────────────
-_OTP_CACHE = {}
 
 
 def normalize_and_validate_mobile(phone_input: str):
@@ -130,78 +126,6 @@ def login():
 
     except Exception as e:
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# POST /api/auth/send-otp
-# ─────────────────────────────────────────────────────────────────────────────
-@auth_bp.route('/api/auth/send-otp', methods=['POST'])
-def send_otp():
-    """
-    Generates and returns a 6-digit OTP for phone verification.
-    Body: { "phone": "9876543210" }
-    """
-    body = request.get_json(silent=True) or {}
-    phone = body.get('phone', '')
-
-    clean_phone, phone_err = normalize_and_validate_mobile(phone)
-    if phone_err:
-        return jsonify({'error': phone_err}), 400
-
-    otp_code = str(random.randint(100000, 999999))
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
-
-    _OTP_CACHE[clean_phone] = {
-        'otp': otp_code,
-        'expires_at': expires_at,
-        'verified': False
-    }
-
-    return jsonify({
-        'success': True,
-        'message': f'OTP sent successfully to +91 {clean_phone}',
-        'phone': clean_phone,
-        'otp': otp_code  # Displayed in notification toast for testing
-    }), 200
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# POST /api/auth/verify-otp
-# ─────────────────────────────────────────────────────────────────────────────
-@auth_bp.route('/api/auth/verify-otp', methods=['POST'])
-def verify_otp():
-    """
-    Verifies 6-digit OTP submitted by user.
-    Body: { "phone": "9876543210", "otp": "123456" }
-    """
-    body = request.get_json(silent=True) or {}
-    phone = body.get('phone', '')
-    otp_submitted = str(body.get('otp', '')).strip()
-
-    clean_phone, phone_err = normalize_and_validate_mobile(phone)
-    if phone_err:
-        return jsonify({'error': phone_err}), 400
-
-    if not otp_submitted:
-        return jsonify({'error': 'Please enter the 6-digit OTP.'}), 400
-
-    record = _OTP_CACHE.get(clean_phone)
-    if not record:
-        return jsonify({'error': 'No active OTP request found. Please request a new OTP.'}), 400
-
-    if datetime.now(timezone.utc) > record['expires_at']:
-        _OTP_CACHE.pop(clean_phone, None)
-        return jsonify({'error': 'OTP has expired. Please request a new OTP.'}), 400
-
-    if record['otp'] != otp_submitted:
-        return jsonify({'error': 'Invalid OTP. Please check and try again.'}), 400
-
-    record['verified'] = True
-    return jsonify({
-        'success': True,
-        'message': 'Mobile number verified successfully!',
-        'phone': clean_phone
-    }), 200
 
 
 # ─────────────────────────────────────────────────────────────────────────────
