@@ -11,11 +11,30 @@ Table: patient
     patient_id, name, gender, dob, email, phone, address, insurance_details
 """
 
+import re
 from flask import Blueprint, request, jsonify
 from config import supabase
 from middleware.auth_guard import require_role
 
 patients_bp = Blueprint('patients', __name__)
+
+
+def normalize_and_validate_mobile(phone_input: str):
+    """
+    Validates that the input is a valid 10-digit mobile number (starts with 6-9).
+    Returns (cleaned_10_digits, error_message_or_None).
+    """
+    if not phone_input:
+        return None, "Phone number is required."
+    digits = re.sub(r'\D', '', str(phone_input).strip())
+    if len(digits) == 12 and digits.startswith('91'):
+        digits = digits[2:]
+    elif len(digits) == 11 and digits.startswith('0'):
+        digits = digits[1:]
+    
+    if not re.match(r'^[6-9]\d{9}$', digits):
+        return None, "Invalid mobile number. Must be a 10-digit number starting with 6, 7, 8, or 9."
+    return digits, None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -103,12 +122,16 @@ def create_patient():
         if missing:
             return jsonify({'error': f'Missing fields: {missing}'}), 400
 
+        clean_phone, phone_err = normalize_and_validate_mobile(body.get('phone'))
+        if phone_err:
+            return jsonify({'error': phone_err}), 400
+
         result = supabase.table('patient').insert({
             'name':              body['name'].strip(),
             'gender':            body['gender'],
             'dob':               body['dob'],
             'email':             body['email'].strip().lower(),
-            'phone':             body['phone'].strip(),
+            'phone':             clean_phone,
             'address':           body['address'].strip(),
             'insurance_details': body.get('insurance_details', ''),
         }).execute()
@@ -133,6 +156,12 @@ def update_patient(patient_id):
         body = request.get_json(silent=True) or {}
         allowed = ['name', 'gender', 'dob', 'email', 'phone', 'address', 'insurance_details']
         updates = {k: v for k, v in body.items() if k in allowed and v is not None}
+
+        if 'phone' in updates:
+            clean_phone, phone_err = normalize_and_validate_mobile(updates['phone'])
+            if phone_err:
+                return jsonify({'error': phone_err}), 400
+            updates['phone'] = clean_phone
 
         if not updates:
             return jsonify({'error': 'No valid fields provided for update.'}), 400

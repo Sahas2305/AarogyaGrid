@@ -22,6 +22,7 @@ import { Drawer } from '../../components/ui/Drawer';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { getDoctors, getDepartments, createDoctor, updateDoctor } from '../../api/api';
+import { isValidMobile, normalizeMobile } from '../../utils/validators';
 
 export const ManageDoctors = () => {
   useRoleGuard(['admin']);
@@ -99,6 +100,13 @@ export const ManageDoctors = () => {
       toast.error('Please complete all form fields.');
       return;
     }
+
+    const cleanPhone = normalizeMobile(docPhone);
+    if (!isValidMobile(cleanPhone)) {
+      toast.error('Please enter a valid 10-digit mobile number (starts with 6–9).');
+      return;
+    }
+
     setSaving(true);
     try {
       if (editMode) {
@@ -106,7 +114,7 @@ export const ManageDoctors = () => {
           name: docName.startsWith('Dr.') ? docName : `Dr. ${docName}`,
           specialization: docSpecialization,
           department_id: parseInt(docDepartmentId),
-          phone: docPhone,
+          phone: cleanPhone,
           email: docEmail,
         });
         setDoctors(prev => prev.map(d => d.doctor_id === editDocId ? { ...d, ...res.doctor } : d));
@@ -117,7 +125,7 @@ export const ManageDoctors = () => {
           name: `Dr. ${docName}`,
           specialization: docSpecialization,
           department_id: parseInt(docDepartmentId),
-          phone: docPhone,
+          phone: cleanPhone,
           email: docEmail,
           password: docTempPassword,
         });
@@ -324,16 +332,23 @@ export const ManageDoctors = () => {
 
           <div className="space-y-1">
             <label className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">
-              Mobile Number
+              Mobile Number (10 digits)
             </label>
             <input
-              type="text"
+              type="tel"
+              maxLength={13}
               value={docPhone}
               onChange={(e) => setDocPhone(e.target.value)}
-              placeholder="+91 99450 98765"
+              placeholder="9945098765"
               className="w-full bg-[#112255]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-text-secondary/30 outline-none focus:border-brand-cyan/40"
               required
             />
+            {docPhone && !isValidMobile(docPhone) && (
+              <p className="text-[10px] text-red-400">Must be a valid 10-digit mobile number starting with 6–9</p>
+            )}
+            {docPhone && isValidMobile(docPhone) && (
+              <p className="text-[10px] text-green-400">✓ Valid mobile number</p>
+            )}
           </div>
 
           <div className="space-y-1">

@@ -23,6 +23,7 @@ import { Drawer } from '../../components/ui/Drawer';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { getPatients, updatePatient } from '../../api/api';
+import { isValidMobile, normalizeMobile } from '../../utils/validators';
 
 export const ManagePatients = () => {
   useRoleGuard(['admin']);
@@ -102,6 +103,12 @@ export const ManagePatients = () => {
       return;
     }
     
+    const cleanPhone = normalizeMobile(patPhone);
+    if (!isValidMobile(cleanPhone)) {
+      toast.error('Please enter a valid 10-digit mobile number (starts with 6–9).');
+      return;
+    }
+
     if (!editMode) {
       toast.success('Use the Register tab on the Login page to create patient accounts.');
       setDrawerOpen(false);
@@ -114,7 +121,7 @@ export const ManagePatients = () => {
         name: patName,
         dob: patDob,
         gender: patGender,
-        phone: patPhone,
+        phone: cleanPhone,
         email: patEmail,
         address: patAddress,
         insurance_details: patInsurance,
@@ -125,7 +132,7 @@ export const ManagePatients = () => {
         name: patName, 
         dob: patDob, 
         gender: patGender, 
-        phone: patPhone, 
+        phone: cleanPhone, 
         email: patEmail, 
         address: patAddress, 
         insurance_details: patInsurance,
@@ -350,15 +357,22 @@ export const ManagePatients = () => {
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Mobile Number</label>
+            <label className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Mobile Number (10 digits)</label>
             <input
-              type="text"
+              type="tel"
+              maxLength={13}
               value={patPhone}
               onChange={(e) => setPatPhone(e.target.value)}
-              placeholder="+91 98450 12345"
+              placeholder="9845012345"
               className="w-full bg-[#112255]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-text-secondary/30 outline-none focus:border-brand-cyan/40"
               required
             />
+            {patPhone && !isValidMobile(patPhone) && (
+              <p className="text-[10px] text-red-400">Must be a valid 10-digit mobile number starting with 6–9</p>
+            )}
+            {patPhone && isValidMobile(patPhone) && (
+              <p className="text-[10px] text-green-400">✓ Valid mobile number</p>
+            )}
           </div>
 
           <div className="space-y-1">

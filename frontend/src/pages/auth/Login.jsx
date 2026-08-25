@@ -16,6 +16,8 @@ import { EcgLine } from '../../components/ui/EcgLine';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 
+import { isValidMobile, normalizeMobile } from '../../utils/validators';
+
 // ── Validation helpers ────────────────────────────────────────────────────────
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const isValidEmail = (email) => EMAIL_RE.test(email.trim());
@@ -162,6 +164,13 @@ export const Login = () => {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
 
+    // Mobile number validation
+    const cleanPhone = normalizeMobile(regPhone);
+    if (!isValidMobile(cleanPhone)) {
+      toast.error('Please enter a valid 10-digit mobile number (starts with 6-9).');
+      return;
+    }
+
     // Email validation
     if (!isValidEmail(regEmail)) {
       toast.error('Please enter a valid email address (e.g. user@example.com).');
@@ -187,7 +196,7 @@ export const Login = () => {
         password:           regPassword,
         gender:             regGender,
         dob:                regDob,
-        phone:              regPhone.trim(),
+        phone:              cleanPhone,
         address:            regAddress.trim(),
         insurance_details:  regInsurance.trim(),
       });
@@ -365,13 +374,30 @@ export const Login = () => {
                   </select>
                 </div>
 
-                <FloatingInput
-                  label="Phone Number"
-                  id="regPhone"
-                  value={regPhone}
-                  onChange={(e) => setRegPhone(e.target.value)}
-                  required
-                />
+                {/* Phone Number with live validation hint */}
+                <div>
+                  <FloatingInput
+                    label="Phone Number (10 digits)"
+                    id="regPhone"
+                    type="tel"
+                    maxLength={13}
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(e.target.value)}
+                    required
+                  />
+                  {regPhone && !isValidMobile(regPhone) && (
+                    <p className="text-[10px] text-red-400 -mt-3 mb-3 px-1 flex items-center gap-1">
+                      <XCircle className="w-3 h-3 shrink-0" />
+                      Enter a valid 10-digit mobile number (starts with 6–9)
+                    </p>
+                  )}
+                  {regPhone && isValidMobile(regPhone) && (
+                    <p className="text-[10px] text-green-400 -mt-3 mb-3 px-1 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 shrink-0" />
+                      Valid mobile number
+                    </p>
+                  )}
+                </div>
 
                 {/* Email with live validation hint */}
                 <div>

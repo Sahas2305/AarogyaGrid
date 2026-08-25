@@ -8,6 +8,7 @@ Endpoints:
 """
 
 import os
+import re
 import jwt
 import bcrypt
 from datetime import datetime, timezone, timedelta
@@ -15,6 +16,24 @@ from flask import Blueprint, request, jsonify
 from config import supabase, JWT_SECRET
 
 auth_bp = Blueprint('auth', __name__)
+
+
+def normalize_and_validate_mobile(phone_input: str):
+    """
+    Validates that the input is a valid 10-digit mobile number (starts with 6-9).
+    Returns (cleaned_10_digits, error_message_or_None).
+    """
+    if not phone_input:
+        return None, "Phone number is required."
+    digits = re.sub(r'\D', '', str(phone_input).strip())
+    if len(digits) == 12 and digits.startswith('91'):
+        digits = digits[2:]
+    elif len(digits) == 11 and digits.startswith('0'):
+        digits = digits[1:]
+    
+    if not re.match(r'^[6-9]\d{9}$', digits):
+        return None, "Invalid mobile number. Must be a 10-digit number starting with 6, 7, 8, or 9."
+    return digits, None
 
 
 def _generate_token(user: dict) -> str:
@@ -156,6 +175,11 @@ def register():
     password = body['password']
     username = body['username'].strip()
 
+    # ── 1b. Validate mobile number ───────────────────────────────────────
+    clean_phone, phone_err = normalize_and_validate_mobile(body.get('phone'))
+    if phone_err:
+        return jsonify({'error': phone_err}), 400
+
     # ── 2. Check if email already exists ─────────────────────────────────
     try:
         existing = supabase.table('users').select('user_id').eq('email', email).execute()
@@ -191,7 +215,7 @@ def register():
             'gender':             body.get('gender'),
             'dob':                dob_val,
             'email':              email,
-            'phone':              body.get('phone'),
+            'phone':              clean_phone,
             'address':            body.get('address'),
             'insurance_details':  body.get('insurance_details', ''),
         }).execute()
