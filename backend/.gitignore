@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# Environment secrets — NEVER COMMIT
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
