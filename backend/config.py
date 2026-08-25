@@ -20,9 +20,17 @@ import httpx
 # Load environment variables from .env file
 load_dotenv()
 
-SUPABASE_URL: str = os.environ.get("SUPABASE_URL", "")
-SUPABASE_SERVICE_KEY: str = os.environ.get("SUPABASE_SERVICE_KEY", "")
-JWT_SECRET: str = os.environ.get("JWT_SECRET", "fallback_dev_secret")
+SUPABASE_URL: str = os.environ.get(
+    "SUPABASE_URL", "https://repymkiybpmhiarewkbr.supabase.co"
+)
+SUPABASE_SERVICE_KEY: str = os.environ.get(
+    "SUPABASE_SERVICE_KEY",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlcHlta2l5YnBtaGlhcmV3a2JyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTAxMjA0OCwiZXhwIjoyMDk2NTg4MDQ4fQ.sU1ezO5XLAuCIwEzJbTKLx-somfnf17fDf5UlIZxi1Q",
+)
+JWT_SECRET: str = os.environ.get(
+    "JWT_SECRET",
+    "p83QTrkCi7QKA+b4zJJpMwW4O8/esO2kvOl7hRAUd74VMxXg6nh5xSZCqEEhb35kIL8T6ko5nxsImgXErY5cUw==",
+)
 GEMINI_API_KEY: str = os.environ.get("GEMINI_API_KEY", "")
 
 if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
