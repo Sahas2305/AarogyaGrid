@@ -1,250 +1,174 @@
-# 🏥 HealthcareOS
+# 🏥 AarogyaGrid
+### *Nationwide Intelligent Healthcare, Geolocation & Inpatient Hospital Logistics Platform*
 
-> A full-stack Healthcare Management System built as a DBMS project — featuring role-based dashboards for Admins, Doctors, and Patients, AI-powered diagnosis assistance, and real-time audit logging.
+[![React](https://img.shields.io/badge/Frontend-React%2019%20%7C%20Vite%20%7C%20TailwindCSS-00d4ff?style=for-the-badge&logo=react)](https://react.dev/)
+[![Python](https://img.shields.io/badge/Backend-Flask%203%20%7C%20Python%203.10+-3776ab?style=for-the-badge&logo=python)](https://flask.palletsprojects.com/)
+[![PostgreSQL](https://img.shields.io/badge/Database-Supabase%20PostgreSQL-336791?style=for-the-badge&logo=postgresql)](https://supabase.com/)
+[![Google Gemini](https://img.shields.io/badge/AI-Google%20Gemini%20Flash-8e75ff?style=for-the-badge&logo=google)](https://ai.google.dev/)
+[![License](https://img.shields.io/badge/License-MIT-success?style=for-the-badge)](LICENSE)
 
 ---
 
-## ✨ Features
+## 🌟 Overview
 
-### 👥 Role-Based Access Control
-- **Admin** — Manage doctors, patients, beds, view audit logs, emergency triage & risk prediction
-- **Doctor** — View appointments, manage patient records, write prescriptions, AI Copilot assistance
-- **Patient** — Book appointments, view medical records, lab reports, billing, and AI symptom checker
+**AarogyaGrid** is a full-stack, enterprise-grade healthcare management and hospital network platform built for patients, doctors, and hospital administrators across India.
 
-### 🤖 AI Integration (Google Gemini)
-- **AI Symptom Checker** — Describe symptoms and get preliminary diagnosis suggestions
-- **AI Copilot for Doctors** — Context-aware clinical decision support
-- **AI Report Explainer** — Simplifies complex lab reports for patients in plain language
+It connects over **93+ top-tier hospitals across all 28 States and Union Territories**, providing automated GPS geolocation, live inpatient bed availability, real-time doctor appointments with turn-by-turn Google Maps routing, Gemini AI clinical diagnostics, self-serve UPI/Card payments, and security audit logs.
 
-### 📊 Core Modules
-- Patient & Doctor Management
-- Appointment Scheduling
-- Medical Records & Prescriptions
-- Lab Reports
-- Billing & Payments
-- Bed Management
-- Emergency Triage
-- Audit Logs with PostgreSQL Triggers
-- Risk Prediction Dashboard
+---
+
+## ✨ Key Features & Capabilities
+
+### 📍 1. Nationwide Geolocation & Hospital Directory
+- **Auto-GPS Detection**: Calculates exact road and aerial distance (`km`) to the nearest hospital facility using the **Haversine formula**.
+- **93+ Verified Indian Hospitals**: Comprehensive directory covering Bengaluru, Mumbai, Delhi NCR, Chennai, Hyderabad, Kolkata, Pune, Ahmedabad, Jaipur, Kochi, Lucknow, Chandigarh, and all state capitals.
+- **Facility Discovery Modal**: Filter instantly by State, City, 6-digit Pincode, or Clinical Specialty (Cardiology, Oncology, Organ Transplant, etc.) with star ratings (⭐ 4.6–4.9) and live bed capacity indicators.
+- **Dynamic System Adaptation**: Selecting any hospital dynamically changes the **Topbar active badge**, **Bed booking ward pricing**, **Google Maps Directions**, and **Billing letterheads**.
+
+### 🛏️ 2. Inpatient Bed Booking & Ward Management
+- **Ward Availability Indicators**: Real-time capacity progress bars across 6 ward tiers:
+  - *General Ward*, *Semi-Private*, *Private Deluxe*, *ICU / Critical Care*, *Pediatric Unit*, *Day Care Unit*.
+- **Interactive Reservation Engine**: Select admission and expected discharge dates, calculate estimated daily hospital tariffs, and reserve beds instantly.
+- **Patient & Admin Portals**: Patients can view and cancel their active bed bookings, while hospital admins manage bed status and hospital admissions.
+
+### 💳 3. Self-Serve Payment Gateway
+- **Patient-Only Security**: "Pay Now" checkout buttons are strictly restricted to authenticated patient sessions (Admins/Doctors only view itemized audit receipts).
+- **Multiple Payment Modes**:
+  - 📱 **UPI**: Google Pay, PhonePe, Paytm, BHIM, Cred with real-time UPI ID verification.
+  - 💳 **Credit / Debit Cards**: Visa, MasterCard, RuPay with CVV and expiry validation.
+  - 🏦 **Net Banking**: HDFC, ICICI, SBI, Axis, Kotak, Punjab National Bank.
+  - 💵 **Cash at Hospital Counter**: Self-pay reservation slip with counter reference.
+- **Instant Hospital Receipts**: Generates watermarked digital receipts with transaction IDs and dynamic hospital branding.
+
+### 🩺 4. Doctor Consultation & Slide-in Chart Drawer
+- **1-Click "Open Chart"**: Instant slide-in drawer on the Doctor Dashboard displaying patient demographics, latest vitals, consultation history, and recent lab reports.
+- **AI Clinical Decision Copilot**: Context-aware clinical assistant powered by **Google Gemini** to analyze differential diagnoses and suggest drug interactions.
+- **Prescription & Record Writer**: Digital prescription ledger that syncs directly with patient records.
+
+### 🤖 5. Gemini AI Diagnostic Suite
+- **AI Symptom Checker**: Natural language symptom assessment that recommends triage urgency and matches the exact medical specialist.
+- **AI Report Explainer**: Translates complex blood panels, lipid profiles, and pathology reports into plain, easy-to-understand language for patients.
+- **Doctor Clinical Copilot**: Suggests clinical investigations, ICD-10 diagnostic paths, and treatment protocols.
+
+### 📊 6. Administrative Operations & Security
+- **Emergency Triage Index**: Color-coded severity tracker for emergency arrivals (Red, Yellow, Green).
+- **PostgreSQL Trigger-Driven Audit Logs**: Automatic tracking of every database modification (insert, update, delete) across patient records, appointments, and billing.
+- **Non-Blocking Socket Resilience**: Supabase retry interceptor wrapper preventing `WinError 10035` crashes on high-frequency queries.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 19, Vite, React Router v7, Tailwind CSS |
-| **Charts** | Recharts |
-| **Animations** | Framer Motion |
-| **Backend** | Python, Flask 3, Flask-CORS |
-| **Database** | PostgreSQL via Supabase |
-| **Auth** | JWT (PyJWT) + bcrypt |
-| **AI** | Google Gemini API (`google-generativeai`) |
-| **Deployment** | Vercel (frontend) · Render (backend) |
+| Domain | Technologies |
+|---|---|
+| **Frontend** | React 19, Vite, React Router v7, Tailwind CSS, Lucide Icons |
+| **Charts & Metrics** | Recharts, Framer Motion, CountUp |
+| **Backend API** | Python, Flask 3, Flask-CORS, Gunicorn |
+| **Database & Auth** | PostgreSQL via Supabase, PyJWT, bcrypt password hashing |
+| **AI & LLM** | Google Gemini Flash API (`google-generativeai`) |
+| **Location & Maps** | HTML5 Geolocation API, Haversine Distance Matrix, Google Maps Navigation |
 
 ---
 
-## 📁 Project Structure
+## 📁 Repository Structure
 
 ```
 healthcare-project/
 ├── backend/
-│   ├── app.py               # Flask entry point, blueprint registration
-│   ├── config.py            # Supabase client & env config
-│   ├── schema.sql           # PostgreSQL schema + seed data + audit triggers
-│   ├── requirements.txt
-│   ├── .env.example         # ← copy to .env and fill in secrets
-│   ├── middleware/
-│   │   └── auth_guard.py    # JWT role-guard decorator
+│   ├── app.py                     # Flask entry point & blueprint router
+│   ├── config.py                  # Supabase & Gemini client initialization
+│   ├── schema.sql                 # PostgreSQL tables, triggers & audit logs
+│   ├── requirements.txt           # Python dependencies
 │   ├── routes/
-│   │   ├── auth.py
-│   │   ├── patients.py
-│   │   ├── doctors.py
-│   │   ├── appointments.py
-│   │   ├── medical_records.py
-│   │   ├── billing.py
-│   │   ├── lab_reports.py
-│   │   ├── audit_logs.py
-│   │   └── ai_diagnosis.py
+│   │   ├── auth.py                # Login, Register, JWT generation
+│   │   ├── bed_booking.py         # Inpatient bed reservations API
+│   │   ├── billing.py             # Invoicing & self-serve payment PATCH
+│   │   ├── doctors.py             # Doctor directory & schedule
+│   │   ├── patients.py            # Patient records & registration
+│   │   ├── appointments.py        # Calendar scheduling & statuses
+│   │   ├── medical_records.py     # Clinical notes & prescriptions
+│   │   ├── lab_reports.py         # Lab test orders & results
+│   │   ├── audit_logs.py          # PostgreSQL trigger audit stream
+│   │   └── ai_diagnosis.py        # Google Gemini AI symptom & copilot endpoints
 │   └── utils/
-│       └── audit.py
+│       ├── supabase_retry.py      # Non-blocking socket retry interceptor
+│       └── audit.py               # Audit log helper
 └── frontend/
+    ├── index.html                 # App root & metadata
     ├── src/
-    │   ├── pages/           # Admin / Doctor / Patient / Shared pages
-    │   ├── components/      # Reusable UI + chart components
-    │   ├── context/         # AuthContext (JWT + role state)
-    │   ├── hooks/           # useAuth, useCountUp, useRoleGuard
-    │   └── api/             # Axios API wrapper
-    ├── .env.example         # ← copy to .env and fill in values
+    │   ├── api/api.js             # Centralized Axios API client
+    │   ├── context/
+    │   │   ├── AuthContext.jsx    # Session & JWT role guard
+    │   │   └── HospitalContext.jsx# Nationwide location & hospital state
+    │   ├── data/
+    │   │   └── hospitalsData.js   # 93+ Indian hospitals catalog & Haversine distance
+    │   ├── pages/
+    │   │   ├── admin/             # Bed management, Triage, Risk, Audit
+    │   │   ├── doctor/            # Dashboard, Schedule, Chart Drawer, Copilot
+    │   │   ├── patient/           # Dashboard, Bed Booking, Appointments, Bills, Labs
+    │   │   └── shared/            # Billing, Lab Reports, Symptom Checker
+    │   └── components/            # HospitalSelectorModal, Sidebar, Topbar, Drawers
     └── vite.config.js
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quickstart & Setup Guide
 
-### Prerequisites
-- Node.js ≥ 18
-- Python ≥ 3.10
-- A [Supabase](https://supabase.com) project
-- A [Google Gemini API key](https://aistudio.google.com/app/apikey)
-
----
-
-### 1. Clone the repository
-
+### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/healthcare-project.git
+git clone https://github.com/dvshpat/healthcare-project.git
 cd healthcare-project
 ```
 
----
-
-### 2. Set up the Database
-
-1. Open your Supabase project → **SQL Editor**
-2. Paste and run the contents of [`backend/schema.sql`](backend/schema.sql)
-3. This creates all tables, seeds initial data, and sets up audit triggers
-
----
-
-### 3. Configure the Backend
-
+### 2. Backend Setup
 ```bash
 cd backend
-cp .env.example .env
-```
+python -m venv venv
 
-Edit `.env` and fill in your credentials:
+# Windows:
+.\venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
 
-```env
-SUPABASE_URL=https://your-project-id.supabase.co
-SUPABASE_SERVICE_KEY=your-service-role-key
-JWT_SECRET=your-long-random-secret-string
-GEMINI_API_KEY=your-gemini-api-key
-```
-
-Install dependencies and run:
-
-```bash
 pip install -r requirements.txt
+```
+
+Create `backend/.env`:
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-supabase-service-role-key
+JWT_SECRET=your-random-jwt-secret
+GEMINI_API_KEY=your-google-gemini-api-key
+```
+
+Run the backend server:
+```bash
 python app.py
 ```
-
-Backend runs at `http://localhost:5000`
+> Backend API will be live at `http://127.0.0.1:5000`
 
 ---
 
-### 4. Configure the Frontend
-
+### 3. Frontend Setup
 ```bash
-cd frontend
-cp .env.example .env
-```
-
-Edit `.env`:
-
-```env
-VITE_API_BASE_URL=http://localhost:5000
-```
-
-Install dependencies and run:
-
-```bash
+cd ../frontend
 npm install
 npm run dev
 ```
-
-Frontend runs at `http://localhost:5173`
-
----
-
-## 🔑 Default Login Credentials
-
-> Seed users are created via [`backend/seed_users.py`](backend/seed_users.py). Run it once after schema setup.
-
-```bash
-cd backend
-python seed_users.py
-```
-
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | *(set in seed script)* | *(set in seed script)* |
-| Doctor | *(set in seed script)* | *(set in seed script)* |
-| Patient | *(set in seed script)* | *(set in seed script)* |
+> Frontend app will be live at `http://localhost:5173`
 
 ---
 
-## 🗄️ Database Schema
+## 🔑 Demo Login Accounts
 
-```
-department ──< doctor ──< appointment >── patient
-                                │
-                         medical_record ──< lab_test
-                                │
-                             billing
-                                │
-                           audit_log (trigger-driven)
-```
-
-Audit logs are written automatically by PostgreSQL triggers on `patient`, `doctor`, `appointment`, `medical_record`, and `billing` tables.
-
----
-
-## 🌐 API Overview
-
-All endpoints are prefixed with `/api/` and protected by JWT unless noted.
-
-| Method | Endpoint | Role |
-|--------|----------|------|
-| `POST` | `/api/auth/login` | Public |
-| `GET` | `/api/patients` | Admin |
-| `GET` | `/api/doctors` | Admin, Doctor |
-| `GET/POST` | `/api/appointments` | All |
-| `GET/POST` | `/api/medical-records` | Doctor, Patient |
-| `GET` | `/api/lab-reports` | Doctor, Patient |
-| `GET` | `/api/billing` | Admin, Patient |
-| `GET` | `/api/audit-logs` | Admin |
-| `POST` | `/api/ai/diagnose` | Doctor |
-| `GET` | `/api/ping` | Public (health check) |
-
----
-
-## 🔒 Security
-
-- Passwords are hashed with **bcrypt**
-- All protected routes use **JWT Bearer token** authentication
-- Role-based access enforced via `@require_role()` decorator
-- Environment secrets are **never committed** to the repository
-
----
-
-## 📦 Deployment
-
-### Frontend → Vercel
-```bash
-cd frontend
-npm run build
-# Deploy the dist/ folder to Vercel
-```
-Set `VITE_API_BASE_URL` to your Render backend URL in Vercel's environment variables.
-
-### Backend → Render
-- Set all `.env` variables in Render's environment dashboard
-- Start command: `gunicorn app:app`
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit your changes: `git commit -m 'feat: add some feature'`
-4. Push and open a Pull Request
+| Role | Email | Password | Access Rights |
+|---|---|---|---|
+| **Admin** | `admin@healthcareos.org` | `Admin@1234` | All hospital operations, beds, triage, audit logs |
+| **Doctor** | `priya.sharma@hospital.org` | `Doctor@1234` | Patient charts, copilot, appointments, prescriptions |
+| **Patient** | `devansh@gmail.com` | `Patient@1234` | GPS hospital finder, bed booking, appointments, Pay Now |
 
 ---
 
 ## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
+This project is open-source and available under the **MIT License**.
