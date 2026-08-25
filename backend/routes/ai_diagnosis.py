@@ -165,9 +165,23 @@ def _fallback_response(symptoms: str) -> dict:
     }
 
 
+# ── Helper: optional patient ID from JWT ───────────────────────────────────────
+def _get_optional_patient_id():
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        try:
+            token = auth_header.split(' ', 1)[1]
+            from config import JWT_SECRET
+            import jwt
+            payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+            return payload.get('patient_id')
+        except Exception:
+            return None
+    return None
+
+
 # ── POST /api/symptom-log ─────────────────────────────────────────────────────
 @ai_diagnosis_bp.route('/api/symptom-log', methods=['POST'])
-@require_role('admin', 'doctor', 'patient')
 def post_symptom_log():
     """
     Save a symptom description and return the new row's ID.
@@ -180,7 +194,7 @@ def post_symptom_log():
     if not symptom_description:
         return jsonify({'error': 'symptom_description is required'}), 400
 
-    patient_id = getattr(request, 'user', {}).get('patient_id')
+    patient_id = _get_optional_patient_id()
 
     try:
         row = {
@@ -201,7 +215,6 @@ def post_symptom_log():
 
 # ── POST /api/ai-diagnosis ────────────────────────────────────────────────────
 @ai_diagnosis_bp.route('/api/ai-diagnosis', methods=['POST'])
-@require_role('admin', 'doctor', 'patient')
 def post_ai_diagnosis():
     """
     Run Gemini clinical triage on provided symptoms.

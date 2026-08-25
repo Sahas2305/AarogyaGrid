@@ -144,9 +144,14 @@ export const AISymptomChecker = ({ viewMode = 'patient' }) => {
       }
 
     } catch (err) {
-      const errMsg = { sender: 'ai', text: '❌ Analysis failed. Please check your connection and try again.', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+      console.error('AI diagnosis error:', err);
+      const isAuthErr = err.message?.toLowerCase().includes('token') || err.message?.toLowerCase().includes('auth') || err.message?.toLowerCase().includes('401');
+      const textMsg = isAuthErr
+        ? '🔒 Session expired. Please sign out and sign back in to continue.'
+        : `❌ Analysis failed: ${err.message || 'Please check your connection and try again.'}`;
+      const errMsg = { sender: 'ai', text: textMsg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
       setMessages(prev => [...prev, errMsg]);
-      toast.error('AI diagnosis request failed.');
+      toast.error(err.message || 'AI diagnosis request failed.');
     } finally {
       setIsTyping(false);
       setAnalyzing(false);
