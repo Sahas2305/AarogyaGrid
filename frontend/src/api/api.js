@@ -8,7 +8,7 @@
  *   const doctors = await getDoctors();
  */
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://aarogyagrid.onrender.com');
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://aarogyagrid-1.onrender.com');
 
 /** Reads the JWT from localStorage and builds standard request headers */
 const getHeaders = () => ({
