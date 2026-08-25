@@ -32,20 +32,28 @@ const request = async (path, options = {}) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** POST /api/auth/login — returns { token, role, user_id, patient_id, doctor_id, username } */
-export const loginUser = (email, password) =>
-  fetch(`${BASE_URL}/api/auth/login`, {
+export const loginUser = async (email, password) => {
+  const res = await fetch(`${BASE_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
-  }).then((r) => r.json());
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `Server error (${res.status})`);
+  return json;
+};
 
 /** POST /api/auth/register — returns same shape as login */
-export const registerPatient = (data) =>
-  fetch(`${BASE_URL}/api/auth/register`, {
+export const registerPatient = async (data) => {
+  const res = await fetch(`${BASE_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
-  }).then((r) => r.json());
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `Registration error (${res.status})`);
+  return json;
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PATIENTS

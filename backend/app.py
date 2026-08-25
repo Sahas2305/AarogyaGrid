@@ -72,15 +72,10 @@ from routes.bed_booking     import bed_booking_bp
 # ── App factory ──────────────────────────────────────────────────────────────
 app = Flask(__name__)
 
-# Allow requests from the React dev server (port 5173) and production domain.
-# Update the origins list when you deploy to Vercel.
+# Allow requests from the React dev server, Vercel deployments, and production domains
 CORS(app, resources={
     r"/api/*": {
-        "origins": [
-            "http://localhost:5173",        # Vite dev server
-            "http://localhost:3000",        # fallback CRA / preview
-            "https://*.vercel.app",         # Vercel preview deployments
-        ],
+        "origins": "*",
         "methods": ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
     }

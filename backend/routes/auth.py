@@ -172,12 +172,24 @@ def register():
 
     new_patient_id = None
 
+    dob_val = body.get('dob')
+    if dob_val and isinstance(dob_val, str):
+        dob_str = dob_val.strip()
+        if '-' in dob_str:
+            parts = dob_str.split('-')
+            if len(parts) == 3 and len(parts[0]) == 2 and len(parts[2]) == 4:
+                dob_val = f"{parts[2]}-{parts[1]}-{parts[0]}"
+        elif '/' in dob_str:
+            parts = dob_str.split('/')
+            if len(parts) == 3 and len(parts[0]) == 2 and len(parts[2]) == 4:
+                dob_val = f"{parts[2]}-{parts[1]}-{parts[0]}"
+
     try:
         # ── 4. Insert into `patient` table ───────────────────────────────
         patient_insert = supabase.table('patient').insert({
             'name':               username,
             'gender':             body.get('gender'),
-            'dob':                body.get('dob'),
+            'dob':                dob_val,
             'email':              email,
             'phone':              body.get('phone'),
             'address':            body.get('address'),
