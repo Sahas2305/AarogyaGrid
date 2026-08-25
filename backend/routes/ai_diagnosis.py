@@ -17,15 +17,35 @@ from middleware.auth_guard import require_role
 ai_diagnosis_bp = Blueprint('ai_diagnosis', __name__)
 
 # Configure Gemini client once at import time
-genai.configure(api_key=GEMINI_API_KEY)
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
-# ── Gemini model ──────────────────────────────────────────────────────────────
-def _get_model():
-    """Return a Gemini GenerativeModel instance (flash preferred, pro as fallback)."""
-    try:
-        return genai.GenerativeModel('gemini-1.5-flash')
-    except Exception:
-        return genai.GenerativeModel('gemini-pro')
+# ── Gemini model generator with active endpoint fallbacks ────────────────────
+def _generate_with_gemini(prompt: str) -> str:
+    """Generate content trying active Gemini models (flash-latest, 3.6-flash, 2.5-flash-lite, etc.)."""
+    api_key = GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY is not set in environment.")
+    genai.configure(api_key=api_key)
+    candidate_models = [
+        'gemini-flash-latest',
+        'gemini-3.6-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-pro-latest',
+        'gemini-1.5-flash',
+        'gemini-pro'
+    ]
+    last_err = None
+    for model_name in candidate_models:
+        try:
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
+            if response and response.text:
+                return response.text
+        except Exception as e:
+            last_err = e
+            continue
+    raise last_err or Exception("All Gemini model endpoints failed")
 
 
 # ── Structured triage prompt ──────────────────────────────────────────────────
@@ -198,9 +218,7 @@ def post_ai_diagnosis():
     prompt = TRIAGE_PROMPT.format(symptoms=symptoms, age=patient_age)
 
     try:
-        model = _get_model()
-        response = model.generate_content(prompt)
-        raw_text = response.text
+        raw_text = _generate_with_gemini(prompt)
         diagnosis = _extract_json(raw_text)
 
         # Validate required keys

@@ -17,7 +17,9 @@ from supabase import create_client, Client
 from supabase.lib.client_options import ClientOptions
 import httpx
 
-# Load environment variables from .env file
+# Load environment variables from .env file (check backend/.env and root .env)
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(backend_dir, '.env'))
 load_dotenv()
 
 SUPABASE_URL: str = os.environ.get(
