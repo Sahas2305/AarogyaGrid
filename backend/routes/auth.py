@@ -86,19 +86,40 @@ def login():
         500 — server/database error
     """
     body = request.get_json(silent=True) or {}
-    email    = body.get('email', '').strip().lower()
-    password = body.get('password', '')
+    identifier = body.get('email', body.get('phone', '')).strip().lower()
+    password   = body.get('password', '')
 
-    if not email or not password:
-        return jsonify({'error': 'Email and password are required.'}), 400
+    if not identifier or not password:
+        return jsonify({'error': 'Email / Mobile number and password are required.'}), 400
 
     try:
-        # ── 1. Look up user by email ─────────────────────────────────────
-        result = supabase.table('users').select('*').eq('email', email).limit(1).execute()
+        # ── 1. Look up user by email or 10-digit mobile number ───────────
+        result = None
+        if '@' in identifier:
+            result = supabase.table('users').select('*').eq('email', identifier).limit(1).execute()
+        else:
+            # Check phone number lookup
+            digits = re.sub(r'\D', '', identifier)
+            if len(digits) == 12 and digits.startswith('91'):
+                digits = digits[2:]
+            elif len(digits) == 11 and digits.startswith('0'):
+                digits = digits[1:]
+            
+            # 1a. Check patient table
+            pat = supabase.table('patient').select('patient_id').eq('phone', digits).limit(1).execute()
+            if pat.data:
+                result = supabase.table('users').select('*').eq('patient_id', pat.data[0]['patient_id']).limit(1).execute()
+            else:
+                # 1b. Check doctor table
+                doc = supabase.table('doctor').select('doctor_id').eq('phone', digits).limit(1).execute()
+                if doc.data:
+                    result = supabase.table('users').select('*').eq('doctor_id', doc.data[0]['doctor_id']).limit(1).execute()
+                else:
+                    result = supabase.table('users').select('*').eq('email', identifier).limit(1).execute()
 
-        if not result.data:
-            # Intentionally vague — don't reveal whether email exists
-            return jsonify({'error': 'Invalid email or password.'}), 401
+        if not result or not result.data:
+            # Intentionally vague — don't reveal whether account exists
+            return jsonify({'error': 'Invalid email/phone or password.'}), 401
 
         user = result.data[0]
 

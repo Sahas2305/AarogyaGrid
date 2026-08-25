@@ -336,15 +336,18 @@ export const ManageDoctors = () => {
             </label>
             <input
               type="tel"
-              maxLength={13}
+              maxLength={10}
               value={docPhone}
-              onChange={(e) => setDocPhone(e.target.value)}
+              onChange={(e) => {
+                const onlyDigits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                setDocPhone(onlyDigits);
+              }}
               placeholder="9945098765"
               className="w-full bg-[#112255]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-text-secondary/30 outline-none focus:border-brand-cyan/40"
               required
             />
             {docPhone && !isValidMobile(docPhone) && (
-              <p className="text-[10px] text-red-400">Must be a valid 10-digit mobile number starting with 6–9</p>
+              <p className="text-[10px] text-red-400">Must be 10 digits starting with 6–9</p>
             )}
             {docPhone && isValidMobile(docPhone) && (
               <p className="text-[10px] text-green-400">✓ Valid mobile number</p>

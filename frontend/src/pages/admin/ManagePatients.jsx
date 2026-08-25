@@ -360,15 +360,18 @@ export const ManagePatients = () => {
             <label className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Mobile Number (10 digits)</label>
             <input
               type="tel"
-              maxLength={13}
+              maxLength={10}
               value={patPhone}
-              onChange={(e) => setPatPhone(e.target.value)}
+              onChange={(e) => {
+                const onlyDigits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                setPatPhone(onlyDigits);
+              }}
               placeholder="9845012345"
               className="w-full bg-[#112255]/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-text-secondary/30 outline-none focus:border-brand-cyan/40"
               required
             />
             {patPhone && !isValidMobile(patPhone) && (
-              <p className="text-[10px] text-red-400">Must be a valid 10-digit mobile number starting with 6–9</p>
+              <p className="text-[10px] text-red-400">Must be 10 digits starting with 6–9</p>
             )}
             {patPhone && isValidMobile(patPhone) && (
               <p className="text-[10px] text-green-400">✓ Valid mobile number</p>

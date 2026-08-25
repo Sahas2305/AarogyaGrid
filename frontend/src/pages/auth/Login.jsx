@@ -299,9 +299,9 @@ export const Login = () => {
                 <h2 className="text-xl font-extrabold text-white text-center mb-6">Access Dashboard</h2>
                 
                 <FloatingInput
-                  label="Email Address"
+                  label="Email Address or Mobile Number"
                   id="email"
-                  type="email"
+                  type="text"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required
@@ -373,21 +373,24 @@ export const Login = () => {
                   </select>
                 </div>
 
-                {/* Phone Number with live 10-digit validation hint */}
+                {/* Phone Number with strict digit-only filtering and live 10-digit validation */}
                 <div>
                   <FloatingInput
                     label="Phone Number (10 digits)"
                     id="regPhone"
                     type="tel"
-                    maxLength={13}
+                    maxLength={10}
                     value={regPhone}
-                    onChange={(e) => setRegPhone(e.target.value)}
+                    onChange={(e) => {
+                      const onlyDigits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setRegPhone(onlyDigits);
+                    }}
                     required
                   />
                   {regPhone && !isValidMobile(regPhone) && (
                     <p className="text-[10px] text-red-400 -mt-3 mb-3 px-1 flex items-center gap-1">
                       <XCircle className="w-3 h-3 shrink-0" />
-                      Enter a valid 10-digit mobile number (starts with 6–9)
+                      Must be 10 digits starting with 6–9
                     </p>
                   )}
                   {regPhone && isValidMobile(regPhone) && (
