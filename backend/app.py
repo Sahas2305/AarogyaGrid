@@ -9,6 +9,9 @@ Production (Render):
     gunicorn app:app
 """
 
+import os
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 from flask import Flask, jsonify
 from flask_cors import CORS
 import time
